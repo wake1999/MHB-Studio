@@ -1,0 +1,6174 @@
+/* Research workbench overlay: a wide window over the app frame, painted in
+   the half-paper-media language (定位文档 §4.6): a warm ivory paper ground
+   with two faint washes, low-saturation ink, hairline rules, a caramel
+   accent, serif display type over monospace archive microtext, and
+   near-opaque paper cards floating over the ground. The `--mimir-*` tokens are
+   the panel's private palette; the `--dsw-alias-*` overrides below re-tint
+   every host token read INSIDE the panel, so the paper palette wins over
+   the host's default blue UI. The shell.overlay layer is click-through:
+   the backdrop stays pointer-transparent and only the workbench itself
+   opts back into pointer events. */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgb(24 20 13 / 44%);
+  backdrop-filter: blur(6px) saturate(0.85);
+  pointer-events: none;
+}
+
+.workbench {
+  position: fixed;
+  inset: 2.5vh 2vw;
+  z-index: 1100;
+  box-sizing: border-box;
+  width: 96vw;
+  height: 95vh;
+  display: flex;
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 20px;
+  background: linear-gradient(180deg, var(--mimir-sheet), var(--mimir-paper));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 60%),
+    0 0 1px rgb(33 30 25 / 20%),
+    0 16px 40px rgb(33 30 25 / 18%),
+    0 40px 100px rgb(33 30 25 / 28%);
+  pointer-events: auto;
+  overflow: hidden;
+  /* Native widgets (select popups, checkboxes, scrollbars) follow the light
+     palette; the dark override below flips them together with the tokens. */
+  color-scheme: light;
+  font-family: var(--mimir-sans);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2, rgb(127 127 127 / 40%));
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2, rgb(127 127 127 / 55%));
+  /* ── Paper & ink (light) ─────────────────────────────────────────────── */
+  --mimir-paper: #f5f0e6;
+  --mimir-paper-deep: #ece5d4;
+  --mimir-sheet: #fdfbf7;
+  --mimir-ink: #211e19;
+  --mimir-line: rgb(33 30 25 / 10%);
+  --mimir-line-soft: rgb(33 30 25 / 6%);
+  --mimir-accent: #a0522d;
+  --mimir-accent-strong: #7a3e22;
+  --mimir-accent-soft: rgb(160 82 45 / 12%);
+  --mimir-seal: #bc4749;
+  --mimir-seal-soft: rgb(188 71 73 / 10%);
+  --mimir-success: #5f7e5a;
+  --mimir-success-soft: rgb(95 126 90 / 12%);
+  --mimir-error: #a24b3f;
+  --mimir-error-soft: rgb(162 75 63 / 10%);
+  --mimir-warn: #96742f;
+  --mimir-warn-soft: rgb(154 123 63 / 12%);
+  --mimir-glass: rgb(250 248 245 / 92%);
+  --mimir-edge: inset 0 1px 0 rgb(255 255 255 / 60%);
+  --mimir-card-shadow: 0 1px 2px rgb(74 59 50 / 6%), 0 8px 24px rgb(74 59 50 / 8%);
+  --mimir-serif: Georgia, 'Iowan Old Style', 'Times New Roman', 'Songti SC', 'Noto Serif SC', serif;
+  --mimir-sans: 'Noto Sans SC', 'Inter', system-ui, sans-serif;
+  --mimir-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  /* ── Host-alias re-tints: the paper palette inside the panel ─────────── */
+  --dsw-specific-menu: var(--mimir-sheet);
+  --dsw-alias-markdown-code-block: #f1ebdd;
+  --dsw-alias-label-primary: #211e19;
+  --dsw-alias-label-secondary: #57503f;
+  --dsw-alias-label-tertiary: #857d6c;
+  --dsw-alias-label-quaternary: #a89f8c;
+  --dsw-alias-label-primary-foreground: #f6f1e6;
+  --dsw-alias-border-l1: rgb(33 30 25 / 6%);
+  --dsw-alias-border-l2: rgb(33 30 25 / 10%);
+  --dsw-alias-border-l3: rgb(33 30 25 / 14%);
+  --dsw-alias-border-secondary: rgb(33 30 25 / 14%);
+  --dsw-alias-interactive-bg-hover: rgb(33 30 25 / 5%);
+  --dsw-alias-button-primary-fill: #a0522d;
+  --dsw-alias-button-primary-hover: #7a3e22;
+  --dsw-alias-state-business-primary: #a0522d;
+  --dsw-alias-state-business-tertiary: rgb(160 82 45 / 12%);
+  --dsw-alias-state-success-primary: #5f7e5a;
+  --dsw-alias-state-success-tertiary: rgb(95 126 90 / 12%);
+  --dsw-alias-state-error-primary: #a24b3f;
+  --dsw-alias-state-error-secondary: rgb(162 75 63 / 10%);
+  --dsw-alias-state-error-tertiary: rgb(162 75 63 / 12%);
+  --dsw-alias-state-warn-label: #96742f;
+  --dsw-alias-state-warn-tertiary: rgb(154 123 63 / 12%);
+  --dsw-alias-business-primary: #a0522d;
+  --dsw-alias-business-quaternary: rgb(160 82 45 / 10%);
+  --dsw-font-mono: var(--mimir-mono);
+  --dsw-alias-mono-font: var(--mimir-mono);
+}
+
+/* Left rail: brand head + pill nav + the project picker at the bottom.
+   min-width: 0 or a long nowrap project title inflates the rail past its
+   216px basis via the flex item's automatic minimum size. */
+.side {
+  display: flex;
+  flex: 0 0 244px;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--mimir-line-soft);
+  /* The muted-zine "colored paper strip": a faint caramel wash down the rail. */
+  background:
+    linear-gradient(180deg, rgb(160 82 45 / 6%), transparent 42%),
+    linear-gradient(180deg, var(--mimir-paper-deep), var(--mimir-paper));
+}
+
+.sideHead {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px 18px;
+}
+
+.brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandMark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 10px;
+  /* The seal: one flat ink square with a serif monogram (no gradient, no glow). */
+  background: var(--mimir-ink);
+  box-shadow: var(--mimir-edge);
+  color: var(--mimir-sheet);
+  font-family: var(--mimir-serif);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brandCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.brandSubtitle {
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary, #6b7280);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-family: var(--mimir-serif);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 9px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.close:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  color: var(--dsw-alias-label-secondary, #3c4557);
+}
+
+/* Header switches: theme (sun/moon glyph) and language (中/EN). */
+.headActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 7px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.iconButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+.iconButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  color: var(--dsw-alias-label-secondary, #3c4557);
+}
+
+/* The nav scrolls internally when the window is too short for every tab —
+   it must never eat the project picker's floor below. */
+.nav {
+  display: flex;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px 12px 16px;
+}
+
+.navItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 40px;
+  padding: 0 12px 0 14px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.navIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  opacity: 0.85;
+}
+
+.navIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.navLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navCount {
+  min-width: 18px;
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  text-align: center;
+}
+
+.navItem[data-active] .navIcon {
+  opacity: 1;
+}
+
+.navItem:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+}
+
+.navItem[data-active] {
+  background: var(--mimir-accent-soft);
+  color: var(--mimir-accent-strong);
+  font-weight: 600;
+}
+
+.navItem[data-active] .navCount {
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+/* One visible focus ring for every keyboard-reachable control in the panel.
+   Text inputs/textarea keep their border+shadow :focus treatment (below);
+   everything else gets the outline. */
+.navItem:focus-visible,
+.iconButton:focus-visible,
+.close:focus-visible,
+.projectSelect:focus-visible,
+.projectAction:focus-visible,
+.sessionSelect:focus-visible,
+.btn:focus-visible,
+.btnPrimary:focus-visible,
+.retry:focus-visible,
+.compileButton:focus-visible,
+.bibToggle:focus-visible,
+.metricsToggle:focus-visible,
+.tagPill:focus-visible,
+.tagRemove:focus-visible,
+.outlineItem:focus-visible,
+.issue:focus-visible,
+.paperSummary:focus-visible,
+.figurePreview:focus-visible,
+.figureAction:focus-visible,
+.figureLightbox:focus-visible,
+.railToggle:focus-visible,
+.paperTab:focus-visible,
+.toastClose:focus-visible,
+.serverSelect:focus-visible,
+.paperCardTitle a:focus-visible,
+.experimentLog a:focus-visible,
+.projectCheck input:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, #4176e6);
+  outline-offset: 2px;
+}
+
+/* The split handles are focusable separators (arrow keys nudge the panes);
+   light up the grip line plus a ring while focused. */
+.splitHandle:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, #4176e6);
+  outline-offset: -2px;
+}
+
+.splitHandle:focus-visible::after {
+  background: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+/* The 2px accent bar on the active tab's left edge: one flat ink stroke. */
+.navItem[data-active]::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--mimir-accent);
+}
+
+/* Unified view header: title + subtitle on the left, actions on the right. */
+.viewHead {
+  display: flex;
+  align-items: center;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1, rgb(15 23 42 / 6%));
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+
+.viewHeadText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.viewTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-family: var(--mimir-serif);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.viewSubtitle {
+  margin: 0;
+  /* label-tertiary is too faint against the content well's tinted gradient;
+     secondary keeps the hierarchy while staying readable. */
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.viewActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The two button faces: `btn` is the outlined secondary, `btnPrimary` the
+   solid primary. The `data-danger` flag paints a destructive secondary. */
+.btn,
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn {
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  color: var(--dsw-alias-label-primary, #17233d);
+}
+
+.btn[data-danger] {
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.btn[data-danger]:hover:not(:disabled) {
+  border-color: var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 30%));
+  background: var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 8%));
+}
+
+/* The primary face is one flat ink stamp (print, not UI chrome): deep ink on
+   paper, a hair of lift, and a slight press-down on :active (the 150–200ms
+   motion rule from the design brief). */
+.btnPrimary {
+  border: 1px solid transparent;
+  background: var(--dsw-alias-button-primary-fill, #211e19);
+  color: var(--dsw-alias-label-primary-foreground, #f6f1e6);
+  box-shadow: 0 1px 2px rgb(33 30 25 / 18%), var(--mimir-edge);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover, #3a352c);
+  box-shadow: 0 3px 8px rgb(33 30 25 / 22%), var(--mimir-edge);
+}
+
+.btn:active:not(:disabled),
+.btnPrimary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled,
+.btnPrimary:disabled {
+  cursor: default;
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+/* Overview stat chips: one tinted chip per count. */
+.statChips {
+  display: flex;
+  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: 12px;
+}
+
+.statChip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 15px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: var(--mimir-card-shadow);
+}
+
+.statValue {
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  font-size: 22px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+}
+
+.sideProjects {
+  flex: 1;
+  /* The floor keeps the toggle plus a row and a half visible at any window
+     height (the nav above absorbs the squeeze with its own scroll). */
+  min-height: 108px;
+  overflow-y: auto;
+  padding: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 4%));
+  background: rgb(160 82 45 / 3%);
+}
+
+/* The rail's bottom line: the keyboard-shortcut hint. */
+.sideFoot {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 10px 16px;
+  border-top: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 4%));
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* The rail fold toggle: a quiet row under the nav, chevrons pointing at the
+   fold direction (rotated 180° while folded). */
+.sideFold {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 0 12px 10px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sideFold:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  color: var(--dsw-alias-label-secondary, #3c4557);
+}
+
+.sideFold:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, #4176e6);
+  outline-offset: -2px;
+}
+
+.sideFold svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+/* The folded narrow rail: icons only, tooltip carries the view name. All of
+   it is inert in top-bar mode (≤700px), where the fold button hides. */
+@media (min-width: 701px) {
+  .side[data-folded] {
+    flex-basis: 60px;
+  }
+
+  .side[data-folded] .brandCopy,
+  .side[data-folded] .headActions,
+  .side[data-folded] .navLabel,
+  .side[data-folded] .navCount,
+  .side[data-folded] .sideProjects,
+  .side[data-folded] .sessionBar,
+  .side[data-folded] .sideFoot {
+    display: none;
+  }
+
+  .side[data-folded] .sideHead {
+    justify-content: center;
+    padding: 20px 8px 18px;
+  }
+
+  .side[data-folded] .nav {
+    padding: 4px 8px 16px;
+  }
+
+  .side[data-folded] .navItem {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .side[data-folded] .sideFold {
+    justify-content: center;
+    margin: 0 8px 10px;
+  }
+
+  .side[data-folded] .sideFold svg {
+    transform: rotate(180deg);
+  }
+}
+
+.sectionTitle {
+  margin: 0 0 10px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.hint {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.failure {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.retry {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 14px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.retry:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+}
+
+.projectList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.projectRow {
+  position: relative;
+  display: flex;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.projectRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+}
+
+.projectRow[data-selected] {
+  border-color: rgb(160 82 45 / 28%);
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 6px 18px rgb(33 30 25 / 8%);
+}
+
+/* The row's main click target (selection); the hover actions float above
+   its right edge. */
+.projectSelect {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The row's hover actions (rename/delete): hidden until the row is hovered
+   or keyboard focus lands inside it. */
+.projectActions {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  display: none;
+  gap: 2px;
+}
+
+.projectRow:hover .projectActions,
+.projectRow:focus-within .projectActions {
+  display: flex;
+}
+
+.projectAction {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 6px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.projectAction:hover:not(:disabled) {
+  color: var(--dsw-alias-label-primary, #17233d);
+  border-color: var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+}
+
+.projectAction[data-danger]:hover:not(:disabled) {
+  color: var(--dsw-alias-state-error-primary, #d93026);
+  border-color: var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 30%));
+}
+
+.projectAction:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* The inline create/rename form row of the project list. */
+.projectEditRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.projectInput {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 8px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 13px;
+}
+
+/* The list's bottom button row (new / import). */
+.projectButtons {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.projectButtons .btn {
+  flex: 1;
+}
+
+/* The rail's session switcher: the delivery target of the panel's
+   "… with AI" verbs (the wiki itself is shared across sessions). */
+.sessionBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 4%));
+}
+
+.sessionLabel {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+}
+
+.sessionSelect {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 8px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+}
+
+/* Project titles wrap to two lines before clamping, so a long title like a
+   full paper name stays readable instead of collapsing to a stub. */
+.projectTitle {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+
+/* The content well: the paper ground. Two faint washes (a caramel tint at the
+   upper left, an ochre tint at the upper right — the muted-zine rule of one
+   pale wash each, at a few percent of the area) sit over the paper gradient
+   so the near-opaque paper cards have something quiet to float over. Flex column so the
+   paper view stretches to the full workbench height. */
+.content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 34px;
+  background:
+    radial-gradient(620px 300px at 8% -4%, rgb(160 82 45 / 7%), transparent 70%),
+    radial-gradient(560px 280px at 96% -6%, rgb(154 123 63 / 6%), transparent 70%),
+    linear-gradient(180deg, var(--mimir-paper), var(--mimir-paper-deep));
+}
+
+/* Shared empty state: a centered dashed card with a glyph and copy. */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 24px;
+  border: 1.5px dashed var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+  border-radius: 12px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.emptyGlyph {
+  font-size: 28px;
+  line-height: 1;
+}
+
+/* Overview: the selected project's card with the five-stage progress track. */
+.overviewWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.overviewCard {
+  padding: 28px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 18px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: var(--mimir-card-shadow);
+}
+
+.overviewTitle {
+  margin: 0 0 16px;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-family: var(--mimir-serif);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.stageBar {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 20px;
+  padding: 5px;
+  list-style: none;
+  border-radius: 999px;
+  background: var(--dsw-alias-markdown-code-block, #f1f3f5);
+}
+
+.stageStep {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 999px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  text-align: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.stageStep[data-reached] {
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 12%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.stageStep[data-current] {
+  background: var(--mimir-accent);
+  color: var(--dsw-alias-label-primary-foreground, #f6f1e6);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgb(51 80 107 / 30%);
+}
+
+.overviewMeta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 24px;
+  margin: 0 0 20px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+}
+
+.overviewMeta dt {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+}
+
+.overviewMeta dd {
+  margin: 4px 0 0;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.artifactList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.artifactList li {
+  padding: 3px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 999px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+}
+
+/* The overview card's entry link into the ledger (growth record) tab. */
+.ledgerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--dsw-alias-state-business-primary, #3e5c76);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.ledgerLink:hover {
+  color: var(--mimir-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Overview recent activity: two columns — the latest remote jobs and the
+   latest experiment runs — filling the overview's lower half. */
+.activitySection {
+  padding: 24px 28px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 18px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: var(--mimir-card-shadow);
+}
+
+.activityGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 8px 28px;
+}
+
+.activityColTitle {
+  margin: 0 0 6px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.activityList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activityItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  transition: background-color 0.15s ease;
+}
+
+.activityItem:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+}
+
+.activityName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activityName code {
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+}
+
+.activityTime {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Paper view: outline rail + editor + compile/preview as three cards. The
+   root takes the content well's full height (the well is a flex column).
+   Panes carry min-widths; when the well is narrower than rail + editor +
+   preview, the row scrolls horizontally instead of crushing the source. */
+.paperLayout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+  overflow-x: auto;
+}
+
+/* Slim label naming the project whose paper is being edited. */
+.paperProject {
+  margin: 0;
+  align-self: center;
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Meeting decks: the generate form, pick lists, and the deck list. */
+.meetingForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--mimir-hairline, rgba(23, 35, 61, 0.12));
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-secondary, rgba(23, 35, 61, 0.03));
+  margin-bottom: 16px;
+}
+
+.meetingFormRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.meetingFormRow .input {
+  flex: 1 1 200px;
+}
+
+.meetingDate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+}
+
+.meetingDate .input {
+  flex: 0 0 auto;
+}
+
+.meetingCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* The unconfigured hint next to the AI-illustration switch: a quiet accent
+   link that opens the config fold below. */
+.meetingCheckHint {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--mimir-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The image-gen API config fold: same light card as the generate form. */
+.imageGenPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--mimir-hairline, rgba(23, 35, 61, 0.12));
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-secondary, rgba(23, 35, 61, 0.03));
+  margin-bottom: 16px;
+}
+
+.imageGenToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+  cursor: pointer;
+}
+
+.imageGenToggle:hover {
+  color: var(--mimir-accent);
+}
+
+.imageGenBadge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--mimir-accent-soft);
+  color: var(--mimir-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.meetingPickList {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.meetingPickItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.meetingPickItem:hover {
+  background: var(--dsw-alias-bg-secondary, rgba(23, 35, 61, 0.04));
+}
+
+.meetingPickItem[data-picked] {
+  border-color: var(--mimir-accent);
+  background: var(--mimir-accent-soft);
+}
+
+.meetingPickTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.meetingPickBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meetingPickTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.meetingPickMeta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+}
+
+.meetingPickGrid {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.meetingPickFigure {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--mimir-hairline, rgba(23, 35, 61, 0.12));
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.meetingPickFigure:hover {
+  border-color: var(--mimir-accent);
+}
+
+.meetingPickFigure[data-picked] {
+  border-color: var(--mimir-accent);
+  box-shadow: 0 0 0 2px var(--mimir-accent-soft);
+}
+
+.meetingPickFigure img {
+  width: 100%;
+  height: 90px;
+  object-fit: contain;
+  background: var(--dsw-alias-bg-secondary, rgba(23, 35, 61, 0.04));
+  border-radius: 6px;
+}
+
+.deckList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deckRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--mimir-hairline, rgba(23, 35, 61, 0.12));
+  border-radius: 10px;
+}
+
+.deckName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.deckMeta {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+}
+
+/* Venue picker: header chip plus the registry popover. */
+.venuePicker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.venueChip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px dashed var(--mimir-hairline-strong, rgba(23, 35, 61, 0.2));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.venueChip:hover {
+  border-color: var(--mimir-accent);
+  color: var(--mimir-accent);
+}
+
+.venueChip[data-set] {
+  border-style: solid;
+  border-color: var(--mimir-accent);
+  background: var(--mimir-accent-soft);
+  color: var(--mimir-accent);
+  font-weight: 500;
+}
+
+.venuePopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: 300px;
+  max-height: 440px;
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--mimir-hairline, rgba(23, 35, 61, 0.12));
+  border-radius: var(--mimir-radius-card, 10px);
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: var(--mimir-card-shadow);
+}
+
+.venuePopoverTitle {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-tertiary, #8a93a6);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.venueGroup {
+  margin-bottom: 8px;
+}
+
+.venueGroupTitle {
+  margin: 0 0 2px;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary, #8a93a6);
+}
+
+.venueOption {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.venueOption:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 5%));
+}
+
+.venueOption[data-active] {
+  background: var(--mimir-accent-soft);
+  color: var(--mimir-accent);
+  font-weight: 500;
+}
+
+.venueCustomRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.venueCustomRow .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.venueFileInput {
+  width: 100%;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+}
+
+.venueClear {
+  display: block;
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-state-error-primary, #d93026);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.venueClear:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+
+.outlineRail {
+  /* The basis comes from the inline style (the persisted width squeezed by
+     the container clamp); flex-shrink stays 0 so only that clamp yields.
+     border-box makes the basis the pane's whole footprint, matching the
+     clamp math. */
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 12px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+/* Collapsed rail: just a slim strip carrying the expand button. */
+.outlineRail[data-collapsed] {
+  display: flex;
+  flex-basis: 44px;
+  justify-content: center;
+  padding: 10px 6px;
+  overflow: hidden;
+}
+
+.railToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.railToggle svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.outlineRail[data-collapsed] .railToggle svg {
+  transform: rotate(180deg);
+}
+
+.railToggle:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+}
+
+.railHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.railHead .sectionTitle {
+  margin: 0;
+}
+
+.outlineTree {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 13px;
+  line-height: 24px;
+}
+
+.outlineTree .outlineTree {
+  padding-left: 14px;
+}
+
+.outlineItem {
+  width: 100%;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.outlineItem:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+}
+
+.outlineLine {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+}
+
+.outlineRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.outlineRow .outlineItem {
+  flex: 1;
+  min-width: 0;
+}
+
+.outlineGrip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  flex-shrink: 0;
+  color: var(--dsw-alias-label-quaternary, #98a1b3);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.outlineRow:hover .outlineGrip,
+.outlineGrip:focus-visible {
+  opacity: 1;
+}
+
+.outlineGrip:active {
+  cursor: grabbing;
+}
+
+.outlineGrip svg {
+  width: 10px;
+  height: 14px;
+}
+
+.dropIndicator {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--dsw-alias-business-primary, #3861fb);
+}
+
+li.dropIndicator {
+  position: relative;
+  top: auto;
+  display: block;
+}
+
+/* The slim target shown under a subsection-less section while a subsection
+   is mid-drag: dropping there moves the subsection into that section. */
+.outlineDropZone {
+  margin: 2px 0;
+  padding: 3px 6px;
+  border: 1px dashed var(--dsw-alias-border-secondary, #d3d9e4);
+  border-radius: 6px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.outlineDropZone[data-active] {
+  border-color: var(--dsw-alias-business-primary, #3861fb);
+  color: var(--dsw-alias-business-primary, #3861fb);
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+}
+
+.editorPane,
+.previewPane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 12px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+/* Editor gets 3 shares, preview 2 — the source is the primary surface. The
+   inline flexGrow/flexBasis from the persisted layout overrides these. The
+   min-widths mirror EDITOR_MIN_WIDTH/PREVIEW_MIN_WIDTH in paper-layout.ts so
+   flex shrink alone can never crush a pane below its usable floor. */
+.editorPane {
+  flex: 3;
+  min-width: 360px;
+}
+
+.previewPane {
+  flex: 2;
+  min-width: 280px;
+}
+
+/* Solo (fullscreen/narrow-tab) mode: the one visible pane fills the well, so
+   the floors must not force horizontal scrolling. */
+.paperLayout[data-fullscreen] .editorPane,
+.paperLayout[data-fullscreen] .previewPane {
+  min-width: 0;
+}
+
+/* Drag handles between the three panes: a 12px hit area centered on the 12px
+   gap (negative margins make it layout-neutral), a 2px grip line that lights
+   up on hover/drag. touch-action: none keeps pointer capture smooth. */
+.splitHandle {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 12px;
+  margin: 0 -12px;
+  border-radius: 4px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.splitHandle::after {
+  position: absolute;
+  inset: 0 5px;
+  border-radius: 1px;
+  background: var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  content: '';
+  transition: background-color 0.15s ease;
+}
+
+.splitHandle:hover::after,
+.splitHandle[data-active]::after {
+  background: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+/* While a handle is mid-drag: keep the resize cursor everywhere, suppress
+   text selection, and keep the PDF iframe from swallowing pointer events. */
+.paperLayout[data-dragging] {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.paperLayout[data-dragging] .previewFrame {
+  pointer-events: none;
+}
+
+/* Fullscreen: the named pane takes the whole content area; the other panes
+   and both drag handles hide. */
+.paperLayout[data-fullscreen='editor'] .outlineRail,
+.paperLayout[data-fullscreen='editor'] .previewPane,
+.paperLayout[data-fullscreen='preview'] .outlineRail,
+.paperLayout[data-fullscreen='preview'] .editorPane,
+.paperLayout[data-fullscreen] .splitHandle {
+  display: none;
+}
+
+.paneHeadActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* The venue badge yields first: it ellipsizes below its 220px cap so the
+   save pill and the fullscreen button stay reachable in narrow panes. */
+.editorHead .venuePicker {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.editorHead .venueChip {
+  min-width: 0;
+}
+
+.editorHead .venuePicker .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.editorHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.editorHead .sectionTitle {
+  flex-shrink: 0;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.savePill {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 3px 12px;
+  border: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 4%));
+  border-radius: 999px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.savePill[data-state='saved'] {
+  border-color: transparent;
+  background: var(--dsw-alias-state-success-tertiary, rgb(52 199 89 / 12%));
+  color: var(--dsw-alias-state-success-primary, #2da44e);
+}
+
+.savePill[data-state='dirty'],
+.savePill[data-state='saving'] {
+  color: var(--dsw-alias-label-primary, #17233d);
+}
+
+.savePill[data-state='save-error'],
+.savePill[data-state='conflict'] {
+  border-color: transparent;
+  background: var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 10%));
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.conflictBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Editor with the synced line-number gutter. */
+.editorWrap {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+  overflow: hidden;
+}
+
+.gutter {
+  flex: 0 0 auto;
+  padding: 10px 8px;
+  overflow: hidden;
+  border-right: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 4%));
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 13px;
+  line-height: 19px;
+  text-align: right;
+  user-select: none;
+}
+
+.editorStack {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+/* Shared text geometry: the textarea and its highlight overlay MUST agree
+   glyph for glyph, or the overlay shows up as a ghost. */
+.editor,
+.editorHighlight {
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: none;
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 13px;
+  line-height: 19px;
+  tab-size: 8;
+  white-space: pre;
+}
+
+.editor {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  background: transparent;
+  color: var(--dsw-alias-label-primary, #17233d);
+  resize: none;
+  /* No soft wrap: one visual row must stay one logical line, or the gutter
+     numbers and the click-to-jump scroll/selection math drift apart. */
+  overflow: auto;
+}
+
+/* With the overlay on, the textarea paints only the caret and the selection;
+   the colored glyphs come from the pre underneath. */
+.editor[data-highlighted] {
+  color: transparent;
+  caret-color: var(--dsw-alias-label-primary, #17233d);
+}
+
+.editor:disabled {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+}
+
+.editorHighlight {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  color: var(--dsw-alias-label-primary, #17233d);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* One mounted line of the windowed overlay; the fixed height keeps empty
+   lines pixel-aligned with the textarea (a contentless div would collapse). */
+.editorHighlightLine {
+  height: 19px;
+}
+
+/* Zero-height widest-line sizer: holds the pre's scrollable width in step
+   with the textarea's while only a window of lines is mounted. */
+.editorHighlightSizer {
+  height: 0;
+  width: max-content;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+/* Syntax colors: muted inks, kept distinct but all inside the paper palette
+   (the no-high-chroma rule of the design language). */
+.editorHighlight [data-tok='command'] {
+  color: var(--mimir-tok-command, #3e5c76);
+}
+
+.editorHighlight [data-tok='comment'] {
+  color: var(--mimir-tok-comment, #6b7f6e);
+  font-style: italic;
+}
+
+.editorHighlight [data-tok='math'] {
+  color: var(--mimir-tok-math, #7a5c66);
+}
+
+.editorHighlight [data-tok='brace'],
+.editorHighlight [data-tok='bracket'] {
+  color: var(--mimir-tok-brace, #57503f);
+}
+
+.editorHighlight [data-tok='env'] {
+  color: var(--mimir-tok-env, #4a6b5c);
+}
+
+.compileRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.compileButton {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 14px;
+  background: var(--dsw-alias-button-primary-fill, #211e19);
+  color: var(--dsw-alias-label-primary-foreground, #f6f1e6);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgb(33 30 25 / 20%), var(--mimir-edge);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.compileButton:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover, #3a352c);
+  box-shadow: 0 3px 8px rgb(33 30 25 / 24%), var(--mimir-edge);
+}
+
+.compileButton:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.compileButton:disabled {
+  cursor: default;
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.compileStatus {
+  flex-shrink: 0;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.compileStatus[data-state='ok'] {
+  color: var(--dsw-alias-state-success-primary, #2da44e);
+}
+
+.compileStatus[data-state='error'] {
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.issueList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 200px;
+}
+
+.issue {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  word-break: break-word;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.issue:hover:not(:disabled) {
+  border-color: var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+}
+
+.issue:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.issueRow {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.issueRow .issue {
+  flex: 1;
+  min-width: 0;
+}
+
+.issueFix {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 4px 10px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 8px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.issueFix:hover:not(:disabled) {
+  border-color: var(--dsw-alias-state-business-primary, #4176e6);
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 15%));
+}
+
+.issueFix:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.issueDot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+}
+
+.issue[data-severity='error'] .issueDot {
+  background: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.issue[data-severity='warning'] .issueDot {
+  background: var(--dsw-alias-state-warn-label, #b25000);
+}
+
+.issueBody {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.issueLine {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 15%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.issue[data-severity='error'] .issueLine {
+  background: var(--dsw-alias-state-error-tertiary, rgb(217 48 38 / 12%));
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.issue[data-severity='warning'] .issueLine {
+  background: var(--dsw-alias-state-warn-tertiary, rgb(178 80 0 / 12%));
+  color: var(--dsw-alias-state-warn-label, #b25000);
+}
+
+.issueMessage {
+  min-width: 0;
+}
+
+.issueWhere {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+}
+
+.gutter div {
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+/* Window spacer: carries the height of the unmounted rows, nothing else. */
+.gutterSpacer {
+  pointer-events: none;
+}
+
+.gutter div[data-flash] {
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 15%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.previewFrame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+}
+
+/* The preview pane's pre-compile placeholder: fills the pane, centered. */
+.previewEmpty {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px dashed var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+  border-radius: 10px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 13px;
+}
+
+/* Papers view: the library card grid under the view header. */
+.papers {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.papersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.paperCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 17px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: var(--mimir-card-shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.paperCard:hover {
+  border-color: var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+  box-shadow: 0 14px 32px rgb(33 30 25 / 12%);
+  transform: translateY(-1px);
+}
+
+.paperCardTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.paperCardTitle a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.paperCardTitle a:hover {
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.paperCardMeta {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.paperSummary {
+  display: -webkit-box;
+  padding: 0;
+  border: none;
+  background: transparent;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: left;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  cursor: pointer;
+}
+
+.paperSummary[data-open] {
+  -webkit-line-clamp: unset;
+}
+
+.paperNotes {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Tag pills (filter bar, card tags, editor chips) and project badges. */
+
+.papersFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.tagPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 2px 10px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 999px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.tagPill:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+}
+
+.tagPill[data-active] {
+  border-color: var(--dsw-alias-state-business-primary, #4176e6);
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 12%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.tagPill[data-kind='project'] {
+  border-style: dashed;
+}
+
+/* Editor chips are static spans: no hover, no pointer. */
+.tagPill[data-static] {
+  cursor: default;
+}
+
+.tagPill[data-static]:hover {
+  background: var(--dsw-specific-menu, #fff);
+}
+
+.tagRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tagRemove:hover {
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.paperTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+/* Badges size to the card (not a fixed 220px) so long project titles keep as
+   much text as the row offers; the full title rides the title tooltip. */
+.projectBadge {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--dsw-alias-state-success-tertiary, rgb(52 199 89 / 12%));
+  color: var(--dsw-alias-state-success-primary, #2da44e);
+  font-size: 12px;
+  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The inline organization editor (tags, project links, notes). */
+
+.paperEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+  border-radius: 10px;
+}
+
+.paperEditorLabel {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.tagEditor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.tagEditor .input {
+  flex: 1;
+  min-width: 140px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.projectChecks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 132px;
+  overflow-y: auto;
+}
+
+.projectCheck {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.paperEditor textarea {
+  resize: vertical;
+  font-size: 13px;
+}
+
+.paperEditorFoot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.papersSearchBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The arXiv/Web source switch inside the search bar (reuses the paper tab
+   pill styles, always visible here unlike the narrow-width paper tabs). */
+.papersSourceTabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  flex-shrink: 0;
+}
+
+.papersSearchBar .input {
+  flex: 1;
+}
+
+.papersSearchBar .btnPrimary {
+  flex-shrink: 0;
+}
+
+.papersSearchPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 14px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+.papersResults {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.paperResult {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+}
+
+.paperResultHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.paperResultHead .paperCardTitle {
+  flex: 1;
+}
+
+.paperResultHead .btn,
+.paperResultHead .btnPrimary {
+  flex-shrink: 0;
+}
+
+.paperSummary[data-static] {
+  margin: 0;
+  cursor: text;
+}
+
+.paperCardFoot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.paperPdf {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paperPdfActions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Experiments view: the run table card plus the log viewer card. */
+.experiments {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.experimentTableWrap,
+.metricCharts,
+.experimentLog {
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 14px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+.experimentTableWrap {
+  padding: 16px 18px;
+  overflow-x: auto;
+}
+
+.experimentTableWrap .sectionTitle {
+  margin: 0 0 10px;
+}
+
+.experimentTable {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 13px;
+}
+
+.experimentTable th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+}
+
+.experimentTable td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 4%));
+  vertical-align: top;
+}
+
+.experimentTable tr:last-child td {
+  border-bottom: none;
+}
+
+.experimentStatus {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: var(--dsw-alias-markdown-code-block, #f1f3f5);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+}
+
+.experimentStatus[data-status='running'] {
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 12%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.experimentStatus[data-status='success'] {
+  background: var(--dsw-alias-state-success-tertiary, rgb(52 199 89 / 12%));
+  color: var(--dsw-alias-state-success-primary, #2da44e);
+}
+
+.experimentStatus[data-status='failed'] {
+  background: var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 10%));
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.metricsToggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 2px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 999px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.metricsToggle:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+}
+
+.metricsList {
+  margin: 8px 0 0;
+}
+
+.metricsRow {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.metricsRow dt {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+}
+
+.metricsRow dd {
+  margin: 0;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+/* Metric comparison: one hand-drawn SVG bar chart per shared numeric key. */
+
+.metricCharts {
+  padding: 16px 18px;
+}
+
+.metricCharts .sectionTitle {
+  margin: 0 0 10px;
+}
+
+.metricChartGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.metricChart {
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+}
+
+.metricChartHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+
+.metricChartHead h4 {
+  margin: 0;
+  padding-top: 5px;
+}
+
+.metricChartHead .retry {
+  flex-shrink: 0;
+}
+
+.metricChart h4 {
+  margin: 0 0 6px;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricChartSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.metricName {
+  fill: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 11px;
+}
+
+.metricBar {
+  fill: var(--dsw-alias-state-business-primary, #4176e6);
+  opacity: 0.85;
+}
+
+.metricBar[data-status='success'] {
+  fill: var(--dsw-alias-state-success-primary, #2da44e);
+}
+
+.metricBar[data-status='failed'] {
+  fill: var(--dsw-alias-state-error-primary, #d93026);
+  opacity: 0.55;
+}
+
+/* #220: negatives extend left of the zero baseline and get a distinct tone. */
+.metricBar[data-negative] {
+  fill: var(--dsw-alias-state-warning-primary, #b0877f);
+}
+
+/* #220: the best run under the metric's declared direction stands out. */
+.metricBar[data-best] {
+  opacity: 1;
+  stroke: var(--dsw-alias-label-primary, #17233d);
+  stroke-width: 1.5;
+}
+
+.metricZeroLine {
+  stroke: var(--dsw-alias-border-l1, rgb(0 0 0 / 25%));
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+.metricValue {
+  fill: var(--dsw-alias-label-primary, #17233d);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+}
+
+.experimentLog {
+  padding: 18px 20px;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.experimentLog .sectionTitle {
+  margin: 0 0 10px;
+}
+
+.experimentLog pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+  overflow-x: auto;
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+}
+
+.experimentLog h2,
+.experimentLog h3,
+.experimentLog h4 {
+  margin: 12px 0 6px;
+  color: var(--dsw-alias-label-primary, #17233d);
+}
+
+.experimentLog p {
+  margin: 6px 0;
+}
+
+/* Figures view: the thumbnail grid plus the lightbox overlay. Cards are
+   divs carrying an inner preview button and a hover-revealed action row. */
+.figures {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1360px;
+  margin: 0 auto;
+}
+
+/* The drop-target overlay: a dashed tint over the whole view while a file
+   drag hovers. pointer-events: none so it never swallows the drag. */
+.figuresDropOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--dsw-alias-state-business-primary, #4176e6);
+  border-radius: 14px;
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 12%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.figuresGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.figureCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 14px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+  text-align: left;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.figureCard:hover,
+.figureCard:focus-within {
+  border-color: var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+  box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
+}
+
+.figurePreview {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* The copy/delete row, revealed on hover or keyboard focus. */
+.figureActions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.figureCard:hover .figureActions,
+.figureCard:focus-within .figureActions {
+  opacity: 1;
+  transform: none;
+}
+
+.figureAction {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 8px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 11px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 10%);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.figureAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  color: var(--dsw-alias-label-primary, #17233d);
+}
+
+.figureAction[data-copied] {
+  border-color: transparent;
+  background: var(--dsw-alias-state-success-tertiary, rgb(52 199 89 / 12%));
+  color: var(--dsw-alias-state-success-primary, #2da44e);
+}
+
+.figureAction[data-danger]:hover {
+  background: var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 10%));
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.figureThumb {
+  width: 100%;
+  height: 150px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+}
+
+.figureBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+  border-radius: 10px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 13px;
+}
+
+.figureName {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.figureSize {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+}
+
+.figureCaption {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.figureExpBadge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--dsw-alias-business-quaternary, rgb(56 97 251 / 10%));
+  color: var(--dsw-alias-business-primary, #3861fb);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.figureLightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4vh 4vw;
+  border: none;
+  background: rgb(10 15 25 / 72%);
+  cursor: zoom-out;
+}
+
+.figureLightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 10px;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 40%);
+  object-fit: contain;
+}
+
+/* Servers view: the compute-server card grid plus the inline add/edit form. */
+.servers {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.serversGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.serverCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 14px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.serverCard:hover {
+  border-color: var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+  box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
+}
+
+.serverCardHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* The probe-status dot: green online, red offline, grey never probed, and a
+   pulsing blue while a probe is in flight. */
+.serverDot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--dsw-alias-border-l3, rgb(0 0 0 / 20%));
+}
+
+.serverDot[data-state='online'] {
+  background: var(--dsw-alias-state-success-primary, #2da44e);
+  box-shadow: 0 0 0 3px var(--dsw-alias-state-success-tertiary, rgb(52 199 89 / 15%));
+}
+
+.serverDot[data-state='offline'] {
+  background: var(--dsw-alias-state-error-primary, #d93026);
+  box-shadow: 0 0 0 3px var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 12%));
+}
+
+.serverDot[data-state='checking'] {
+  background: var(--dsw-alias-state-business-primary, #4176e6);
+  animation: serverDotPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes serverDotPulse {
+  from { box-shadow: 0 0 0 2px rgb(65 118 230 / 20%); }
+  to { box-shadow: 0 0 0 5px rgb(65 118 230 / 8%); }
+}
+
+.serverCardTitle {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.serverName {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.serverAddress {
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The textual twin of the dot, painted in the same state color. */
+.serverState {
+  flex: 0 0 auto;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--dsw-alias-markdown-code-block, #f1f3f5);
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+}
+
+.serverState[data-state='online'] {
+  background: var(--dsw-alias-state-success-tertiary, rgb(52 199 89 / 12%));
+  color: var(--dsw-alias-state-success-primary, #2da44e);
+}
+
+.serverState[data-state='offline'] {
+  background: var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 10%));
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.serverState[data-state='checking'] {
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 12%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.serverNote {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.serverBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--dsw-alias-business-quaternary, rgb(56 97 251 / 10%));
+  color: var(--dsw-alias-business-primary, #3861fb);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* The native selects (experiment relink, job form): painted from the same
+   menu/label tokens as .input so they follow the dark palette, and the
+   workbench's color-scheme makes the dropped-down option list match. */
+.serverSelect {
+  max-width: 140px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 6px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 12px;
+}
+
+.serverProbe {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.serverMessage {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 8%));
+  color: var(--dsw-alias-state-error-primary, #d93026);
+  font-size: 11px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.gpuList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+}
+
+.gpuRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gpuName {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gpuMetric {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gpuBar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--dsw-alias-border-l1, rgb(0 0 0 / 6%));
+  overflow: hidden;
+}
+
+.gpuBarFill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--dsw-alias-state-business-primary, #4176e6);
+  transition: width 0.3s ease;
+}
+
+.gpuBar[data-kind='memory'] .gpuBarFill {
+  background: var(--dsw-alias-state-success-primary, #2da44e);
+}
+
+.gpuValue {
+  flex: 0 0 auto;
+  min-width: 86px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.serverActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+/* The inline add/edit form card above the grid. */
+.serverForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 14px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%), 0 4px 16px rgb(0 0 0 / 4%);
+}
+
+.serverForm .sectionTitle {
+  margin: 0;
+}
+
+.serverFormGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field[data-wide] {
+  grid-column: 1 / -1;
+}
+
+.fieldLabel {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 9px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input::placeholder {
+  color: var(--dsw-alias-label-quaternary, #9aa2b1);
+}
+
+.input:focus {
+  border-color: var(--dsw-alias-state-business-primary, #4176e6);
+  box-shadow: 0 0 0 3px var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 15%));
+}
+
+.input:disabled {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  cursor: default;
+  opacity: 0.7;
+}
+
+.serverFormActions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Bibliography panel: the references.bib entry list plus the library import
+   picker; replaces the paper view's PDF preview while open. */
+.bibPanel {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.bibHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bibHead .sectionTitle {
+  margin: 0;
+}
+
+.bibHeadActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bibList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bibItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-specific-menu, #fff);
+}
+
+.bibRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bibRowMain {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.bibKey {
+  flex-shrink: 0;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bibType {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+}
+
+.bibSummary {
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bibEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+}
+
+.bibEditGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.bibField {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bibFieldLabel {
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+}
+
+.bibFieldGroup {
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.bibExtraRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bibExtraRow .input:first-child {
+  flex: 0 0 160px;
+}
+
+.bibExtraRow .input:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.bibEditFoot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.bibImport {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-specific-menu, #fff);
+}
+
+.bibImport .projectChecks {
+  max-height: 200px;
+}
+
+.bibCheckTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bibImportFoot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.bibToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 7px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.bibToggle:hover:not(:disabled) {
+  border-color: var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  color: var(--dsw-alias-label-primary, #17233d);
+}
+
+.bibToggle[data-active] {
+  border-color: transparent;
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 15%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.bibToggle:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* A shared elevated surface language across EVERY card in the panel:
+   near-opaque warm-white paper over the paper ground,
+   one hairline rule, a faint inner top edge light, and the soft paper shadow.
+   Kept after the individual card rules so every view finishes with the same
+   visual depth (the PaperViz brief, applied with paper restraint). */
+.overviewCard,
+.statChip,
+.activitySection,
+.papersSearchPanel,
+.paperCard,
+.experimentTableWrap,
+.metricCharts,
+.experimentLog,
+.outlineRail,
+.editorPane,
+.previewPane,
+.figureCard,
+.serverCard,
+.serverForm,
+.jobForm,
+.dataSection,
+.bibItem,
+.reportCard,
+.timelineCard {
+  border-radius: 16px;
+  background: var(--mimir-glass);
+  backdrop-filter: blur(14px) saturate(1.05);
+  box-shadow: var(--mimir-edge), var(--mimir-card-shadow);
+}
+
+.figureCard,
+.serverCard,
+.paperCard {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.figureCard:hover,
+.figureCard:focus-within,
+.serverCard:hover {
+  box-shadow: var(--mimir-edge), 0 14px 32px rgb(33 30 25 / 12%);
+  transform: translateY(-1px);
+}
+
+/* Dark palette: the host theme presenter flips `body[data-ds-dark-theme]`;
+   the paper language inverts to warm charcoal with a PALE slate accent and a
+   paper-white primary button (the dark twin of the light ink stamp). Every
+   `--dsw-alias-*` read inside the panel re-tints locally, and the private
+   `--mimir-*` tokens flip together with them. The editor's dark ground is
+   the warm charcoal well, so the syntax colors are picked for it. */
+:global(body[data-ds-dark-theme]) .workbench {
+  border-color: rgb(255 255 255 / 12%);
+  background: linear-gradient(180deg, #1d1a13, #17140d);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 6%),
+    0 0 1px rgb(0 0 0 / 60%),
+    0 16px 40px rgb(0 0 0 / 50%),
+    0 40px 100px rgb(0 0 0 / 60%);
+  color-scheme: dark;
+  /* ── Paper & ink (dark) ───────────────────────────────────────────────── */
+  --mimir-paper: #17140d;
+  --mimir-paper-deep: #131009;
+  --mimir-sheet: #211d15;
+  --mimir-ink: #eae4d4;
+  --mimir-line: rgb(234 228 212 / 10%);
+  --mimir-line-soft: rgb(234 228 212 / 6%);
+  --mimir-accent: #8fb0cc;
+  --mimir-accent-strong: #a9c3db;
+  --mimir-accent-soft: rgb(143 176 204 / 16%);
+  --mimir-seal: #d08a7c;
+  --mimir-seal-soft: rgb(208 138 124 / 14%);
+  --mimir-success: #9cbf94;
+  --mimir-success-soft: rgb(156 191 148 / 14%);
+  --mimir-error: #d08a7c;
+  --mimir-error-soft: rgb(208 138 124 / 14%);
+  --mimir-warn: #c9a86a;
+  --mimir-warn-soft: rgb(201 168 106 / 14%);
+  --mimir-glass: rgb(33 29 21 / 70%);
+  --mimir-edge: inset 0 1px 0 rgb(255 255 255 / 5%);
+  --mimir-card-shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 12px 32px rgb(0 0 0 / 30%);
+  /* ── Host-alias re-tints (dark) ───────────────────────────────────────── */
+  --dsw-specific-menu: #211d15;
+  --dsw-alias-markdown-code-block: #1b1710;
+  --dsw-alias-label-primary: #eae4d4;
+  --dsw-alias-label-secondary: #b3aa97;
+  --dsw-alias-label-tertiary: #8a816d;
+  --dsw-alias-label-quaternary: #6e675a;
+  --dsw-alias-label-primary-foreground: #211d15;
+  --dsw-alias-border-l1: rgb(234 228 212 / 6%);
+  --dsw-alias-border-l2: rgb(234 228 212 / 10%);
+  --dsw-alias-border-l3: rgb(234 228 212 / 16%);
+  --dsw-alias-border-secondary: rgb(234 228 212 / 16%);
+  --dsw-alias-interactive-bg-hover: rgb(234 228 212 / 6%);
+  --dsw-alias-button-primary-fill: #eae4d4;
+  --dsw-alias-button-primary-hover: #f4efe2;
+  --dsw-alias-state-business-primary: #8fb0cc;
+  --dsw-alias-state-business-tertiary: rgb(143 176 204 / 18%);
+  --dsw-alias-state-success-primary: #9cbf94;
+  --dsw-alias-state-success-tertiary: rgb(156 191 148 / 14%);
+  --dsw-alias-state-error-primary: #d08a7c;
+  --dsw-alias-state-error-secondary: rgb(208 138 124 / 14%);
+  --dsw-alias-state-error-tertiary: rgb(208 138 124 / 16%);
+  --dsw-alias-state-warn-label: #c9a86a;
+  --dsw-alias-state-warn-tertiary: rgb(201 168 106 / 14%);
+  --dsw-alias-state-danger: #d08a7c;
+  --dsw-alias-state-danger-light: rgb(208 138 124 / 14%);
+  --dsw-alias-state-warning: #c9a86a;
+  --dsw-alias-state-warning-light: rgb(201 168 106 / 14%);
+  --dsw-alias-state-success: #9cbf94;
+  --dsw-alias-state-success-light: rgb(156 191 148 / 14%);
+  --dsw-alias-focus-border: #8fb0cc;
+  --dsw-alias-bg-body: #131009;
+  --dsw-alias-bg-secondary: rgb(234 228 212 / 4%);
+  --dsw-alias-business-primary: #8fb0cc;
+  --dsw-alias-business-quaternary: rgb(143 176 204 / 14%);
+  --mimir-tok-command: #a9c3db;
+  --mimir-tok-comment: #8ba091;
+  --mimir-tok-math: #c4a3ad;
+  --mimir-tok-brace: #9a9284;
+  --mimir-tok-env: #7fb59d;
+}
+
+:global(body[data-ds-dark-theme]) .side {
+  background:
+    linear-gradient(180deg, rgb(143 176 204 / 5%), transparent 42%),
+    linear-gradient(180deg, var(--mimir-paper-deep), var(--mimir-paper));
+}
+
+:global(body[data-ds-dark-theme]) .content {
+  background:
+    radial-gradient(620px 300px at 8% -4%, rgb(143 176 204 / 6%), transparent 70%),
+    radial-gradient(560px 280px at 96% -6%, rgb(201 168 106 / 4%), transparent 70%),
+    linear-gradient(180deg, #1d1a13, #17140d);
+}
+
+:global(body[data-ds-dark-theme]) .backdrop {
+  background: rgb(0 0 0 / 50%);
+}
+
+/* Narrow-width editor/preview tab bar: rendered in both pane heads, shown
+   only under the 900px breakpoint where the paper view degrades to one pane. */
+.paperTabs {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+}
+
+.paperTab {
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* The source switch's tabs are always rendered; the paper editor's narrow
+   variant hides its own bar outside the breakpoint. */
+.papersSourceTabs .paperTab {
+  display: block;
+}
+
+.paperTab[data-active] {
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+}
+
+@media (max-width: 900px) {
+  .statChips {
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+  }
+
+  .paperTabs {
+    display: inline-flex;
+  }
+
+  .compileRow,
+  .editorHead {
+    flex-wrap: wrap;
+  }
+}
+
+/* Very narrow windows: the side rail becomes a top bar — the nav turns
+   horizontal (scrollable), the project picker drops to a full-width row, and
+   the shortcut hint hides. The workbench is fixed to 96vw, so a viewport
+   query doubles as a container query. */
+@media (max-width: 700px) {
+  .workbench {
+    flex-direction: column;
+  }
+
+  .side {
+    flex: 0 0 auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    border-right: none;
+    border-bottom: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  }
+
+  .sideHead {
+    padding: 10px 12px;
+  }
+
+  .brandSubtitle {
+    display: none;
+  }
+
+  .brandMark {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+  }
+
+  .nav {
+    flex: 1;
+    min-width: 0;
+    flex-direction: row;
+    padding: 4px 8px;
+    overflow-x: auto;
+  }
+
+  .navItem {
+    flex: 0 0 auto;
+  }
+
+  .navCount {
+    display: none;
+  }
+
+  /* The active-tab accent moves from the left edge to the bottom edge. */
+  .navItem[data-active]::before {
+    top: auto;
+    right: 12px;
+    bottom: 2px;
+    left: 14px;
+    width: auto;
+    height: 3px;
+  }
+
+  .sideProjects {
+    flex: 1 1 100%;
+    max-height: 96px;
+    border-top: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 4%));
+  }
+
+  .sideProjects .projectList {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .sideProjects .projectRow {
+    flex: 0 0 200px;
+  }
+
+  .sideFoot {
+    display: none;
+  }
+
+  /* Top-bar mode: the session switcher gives way to the horizontal nav. */
+  .sessionBar {
+    display: none;
+  }
+
+  /* Top-bar mode: the fold control would fight the horizontal nav. */
+  .sideFold {
+    display: none;
+  }
+
+  .sideProjects {
+    min-height: 0;
+  }
+
+  .content {
+    padding: 12px 14px;
+  }
+}
+
+@media (max-width: 460px) {
+  .statChips {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .statChip {
+    padding: 10px 12px;
+  }
+}
+
+/* The experiment-log Markdown renderer: h1 plus the inline/table/quote/rule
+   elements the restricted parser emits (h2–h4, p, pre ride the rules above).
+   Everything reads the shared --dsw-* tokens, so the dark palette follows. */
+.experimentLog h1 {
+  margin: 14px 0 8px;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 18px;
+}
+
+.experimentLog code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+}
+
+.experimentLog pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.experimentLog blockquote {
+  margin: 8px 0;
+  padding: 2px 12px;
+  border-left: 3px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+}
+
+.experimentLog ul,
+.experimentLog ol {
+  margin: 6px 0;
+  padding-left: 22px;
+}
+
+.experimentLog li {
+  margin: 2px 0;
+}
+
+.experimentLog hr {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+}
+
+.experimentLog table {
+  margin: 8px 0;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.experimentLog th,
+.experimentLog td {
+  padding: 5px 10px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  text-align: left;
+}
+
+.experimentLog th {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-weight: 600;
+}
+
+.experimentLog a {
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  text-decoration: none;
+}
+
+.experimentLog a:hover {
+  text-decoration: underline;
+}
+
+/* The overview's data section: wiki snapshot export and the import flow. */
+.dataSection {
+  padding: 24px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 14px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%), 0 4px 16px rgb(0 0 0 / 4%);
+}
+
+.dataActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dataSummary {
+  margin-top: 16px;
+}
+
+.dataWarning {
+  margin: 8px 0;
+  color: var(--dsw-alias-state-error-primary, #d93026);
+  font-size: 13px;
+}
+
+/* The corner toast stack: bottom-right of the workbench, one card per queued
+   toast with a kind-colored accent bar; the entrance slides in from the right. */
+.toastStack {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(360px, 60%);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-left: 3px solid var(--dsw-alias-state-business-primary, #4176e6);
+  border-radius: 10px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 8%), 0 8px 24px rgb(0 0 0 / 10%);
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 13px;
+  line-height: 1.5;
+  pointer-events: auto;
+  animation: toastSlideIn 180ms ease-out;
+  word-break: break-word;
+}
+
+.toastSuccess {
+  border-left-color: var(--dsw-alias-state-success-primary, #2da44e);
+}
+
+.toastInfo {
+  border-left-color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.toastError {
+  border-left-color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.toastMessage {
+  flex: 1;
+}
+
+.toastClose {
+  flex: none;
+  padding: 0 2px;
+  border: none;
+  background: none;
+  color: var(--dsw-alias-label-tertiary, rgb(23 35 61 / 45%));
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.toastClose:hover {
+  color: var(--dsw-alias-label-primary, #17233d);
+}
+
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ── Remote jobs (the servers view's jobs section) ─────────────────────── */
+
+.jobsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.jobForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 14px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+.jobForm .field[data-wide] {
+  flex: 1 1 320px;
+}
+
+.jobCommand {
+  display: inline-block;
+  max-width: 420px;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-family: var(--dsw-alias-mono-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.jobStatus {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: var(--dsw-alias-markdown-code-block, #f1f3f5);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+}
+
+.jobStatus[data-status='running'] {
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 12%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.jobStatus[data-status='succeeded'] {
+  background: var(--dsw-alias-state-success-tertiary, rgb(52 199 89 / 12%));
+  color: var(--dsw-alias-state-success-primary, #2da44e);
+}
+
+.jobStatus[data-status='failed'] {
+  background: var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 10%));
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+/* Cancelled / interrupted / unknown: the job ended without an observed
+   outcome — neutral warning tint, never success green or failure red. */
+.jobStatus[data-status='cancelled'],
+.jobStatus[data-status='interrupted'],
+.jobStatus[data-status='unknown'] {
+  background: var(--dsw-alias-state-warning-secondary, rgb(210 153 34 / 12%));
+  color: var(--dsw-alias-state-warning-primary, #9a6700);
+}
+
+.jobExitCode {
+  margin-left: 6px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+}
+
+/* The experiment row's last-job write-back badge, under the status pill. */
+.experimentLastJob {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+}
+
+.experimentLastJob .jobStatus {
+  padding: 1px 8px;
+  font-size: 11px;
+}
+
+.jobOutput {
+  margin-top: 8px;
+}
+
+.jobOutput pre {
+  max-height: 180px;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--dsw-alias-markdown-code-block, #f1f3f5);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-family: var(--dsw-alias-mono-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.jobOutput pre[data-kind='stderr'] {
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+/* Experiments inline form: the metrics key/value row editor. */
+.metricRows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metricRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── Ledger (growth record) view ──────────────────────────────────────────
+   Archive microtext + hairline rules + flat square nodes: the timeline reads
+   like a printed ledger page, the report renders as a sheet of paper. */
+
+.ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* Window × scope controls: two quiet micro-labeled pill groups. */
+.ledgerControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ledgerControlLabel {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ledgerControls .ledgerControlLabel + .tagPill {
+  margin-left: 0;
+}
+
+/* The report card: title row + actions, then the generated sheet. */
+.reportCard {
+  padding: 18px 22px;
+  border: 1px solid var(--mimir-line-soft);
+}
+
+.reportCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.reportCardTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-family: var(--mimir-serif);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* The generated report: a printed sheet on the paper ground — the flat,
+   continuous ivory panel of the photo-abstract-editorial grammar, with serif
+   headings, hairline section rules, and monospace archive metadata. */
+.reportSheet {
+  margin-top: 14px;
+  padding: 26px 30px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 12px;
+  background: var(--mimir-sheet);
+  box-shadow: var(--mimir-edge);
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-size: 13.5px;
+  line-height: 1.75;
+}
+
+.reportMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 0 0 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--mimir-line);
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-family: var(--mimir-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.reportSheet h1 {
+  margin: 10px 0 10px;
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-family: var(--mimir-serif);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.reportSheet h2 {
+  margin: 20px 0 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--mimir-line-soft);
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-family: var(--mimir-serif);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.reportSheet h3,
+.reportSheet h4 {
+  margin: 14px 0 6px;
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-size: 13.5px;
+}
+
+.reportSheet p {
+  margin: 6px 0;
+}
+
+.reportSheet ul,
+.reportSheet ol {
+  margin: 6px 0;
+  padding-left: 22px;
+}
+
+.reportSheet li {
+  margin: 3px 0;
+}
+
+.reportSheet hr {
+  margin: 14px 0;
+  border: none;
+  border-top: 1px solid var(--mimir-line);
+}
+
+.reportSheet blockquote {
+  margin: 8px 0;
+  padding: 2px 12px;
+  border-left: 3px solid var(--mimir-line);
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+}
+
+.reportSheet code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--dsw-alias-markdown-code-block, #f1ebdd);
+  font-family: var(--mimir-mono);
+  font-size: 12px;
+}
+
+.reportSheet table {
+  margin: 8px 0;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.reportSheet th,
+.reportSheet td {
+  padding: 5px 10px;
+  border: 1px solid var(--mimir-line);
+  text-align: left;
+}
+
+.reportSheet th {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(33 30 25 / 5%));
+  font-weight: 600;
+}
+
+/* The boundary confirmation cards: one question row per card — the agent
+   asks, the user's answer lands as an L2 journal line. */
+.questionList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.questionCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 10px;
+}
+
+.questionKind {
+  flex-shrink: 0;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 11px;
+}
+
+.questionLine {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-size: 12.5px;
+}
+
+/* The L2 journal box: a dashed enclosure under the brief's sheet — the one
+   place the user writes their own words onto the map. */
+.journalBox {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px dashed var(--mimir-line);
+  border-radius: 10px;
+}
+
+.journalHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.journalScope {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-family: var(--mimir-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+
+.journalInput {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--mimir-line);
+  border-radius: 8px;
+  background: var(--mimir-sheet);
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-family: var(--mimir-serif);
+  font-size: 13.5px;
+  line-height: 1.6;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.journalInput::placeholder {
+  color: var(--dsw-alias-label-tertiary, #9aa2b1);
+}
+
+.journalInput:focus {
+  border-color: var(--dsw-alias-state-business-primary, #4176e6);
+  box-shadow: 0 0 0 3px var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 15%));
+}
+
+.journalFoot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.journalCount {
+  margin-right: auto;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-family: var(--mimir-mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.journalCount[data-over] {
+  color: var(--dsw-alias-state-danger, #c2413a);
+}
+
+.journalOver {
+  color: var(--dsw-alias-state-danger, #c2413a);
+  font-size: 11px;
+}
+
+.journalMood {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.journalMoodLabel {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 11px;
+}
+
+.journalSelect {
+  padding: 2px 6px;
+  border: 1px solid var(--mimir-line);
+  border-radius: 6px;
+  background: var(--mimir-sheet);
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-family: var(--mimir-mono);
+  font-size: 11px;
+  outline: none;
+}
+
+/* The timeline: one hairline-separated row per event — microtext timestamp,
+   a flat square node, the action stamp, the actor microtext, the payload line. */
+.timelineCard {
+  padding: 18px 22px;
+  border: 1px solid var(--mimir-line-soft);
+}
+
+.ledgerCap {
+  margin: 0 0 8px;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 11px;
+}
+
+.ledgerList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ledgerRow {
+  display: grid;
+  grid-template-columns: 88px 16px minmax(0, 1fr);
+  gap: 0 8px;
+  align-items: start;
+  padding: 9px 2px;
+  transition: background-color 0.15s ease;
+}
+
+.ledgerRow + .ledgerRow {
+  border-top: 1px solid var(--mimir-line-soft);
+}
+
+.ledgerRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(33 30 25 / 5%));
+}
+
+.ledgerTime {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-top: 1px;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-family: var(--mimir-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ledgerTimeDate {
+  color: var(--dsw-alias-label-secondary, #57503f);
+}
+.ledgerTimeClock {
+  color: var(--dsw-alias-label-quaternary, #a89f8c);
+}
+
+.ledgerNode {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border: 1px solid var(--mimir-accent);
+  border-radius: 2px;
+  background: var(--mimir-sheet);
+}
+
+.ledgerRow[data-destructive] .ledgerNode {
+  border-color: var(--mimir-error);
+  background: var(--mimir-error-soft);
+}
+
+.ledgerBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ledgerLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+/* The action name as a small mono stamp (the archive's classification tag). */
+.ledgerAction {
+  padding: 1px 7px;
+  border: 1px solid var(--mimir-line);
+  border-radius: 5px;
+  background: var(--mimir-sheet);
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-family: var(--mimir-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* The destructive mark: a quiet brick-red stamp, no alarm color. */
+.ledgerMark {
+  padding: 1px 8px;
+  border-radius: 4px;
+  background: var(--mimir-error-soft);
+  color: var(--mimir-error);
+  font-family: var(--mimir-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.actorBadge {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-family: var(--mimir-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* Actor hue tints (lane graph): stable per actor, border carries the tint. */
+.actorBadge[data-hue='0'] { color: #4176e6; }
+.actorBadge[data-hue='1'] { color: #1a9e63; }
+.actorBadge[data-hue='2'] { color: #b06000; }
+.actorBadge[data-hue='3'] { color: #8250df; }
+.actorBadge[data-hue='4'] { color: #d93026; }
+.actorBadge[data-hue='5'] { color: #0e7490; }
+
+.ledgerDetail {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary, #57503f);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* ── Upstream v0.13.0 feature UI (ported into the paper-media palette) ──
+   The rule bodies are upstream's; their panel-private token names map onto
+   this theme's tokens (hairline → line, radius card/inner → 16/10px), and
+   every other color rides a `--dsw-alias-*` read that the dark block above
+   re-tints, so these views follow the theme without extra rules.
+   Covers: group-meeting decks, the venue picker, the Zotero section, the
+   arXiv subscription bar, paper snapshots + diff, the figure format
+   editor, reading notes + fullscreen PDF, relevance chips, and the staged
+   server probe. */
+
+/* One visible focus ring for every keyboard-reachable control in the panel.
+   Text inputs/textarea keep their border+shadow :focus treatment (below);
+   everything else gets the outline. */
+.navItem:focus-visible,
+.iconButton:focus-visible,
+.close:focus-visible,
+.projectSelect:focus-visible,
+.projectAction:focus-visible,
+.sessionSelect:focus-visible,
+.btn:focus-visible,
+.btnPrimary:focus-visible,
+.retry:focus-visible,
+.compileButton:focus-visible,
+.bibToggle:focus-visible,
+.metricsToggle:focus-visible,
+.tagPill:focus-visible,
+.tagRemove:focus-visible,
+.outlineItem:focus-visible,
+.issue:focus-visible,
+.paperSummary:focus-visible,
+.figurePreview:focus-visible,
+.figureAction:focus-visible,
+.figureLightbox:focus-visible,
+.railToggle:focus-visible,
+.paperTab:focus-visible,
+.sideProjectsToggle:focus-visible,
+.subscriptionNewToggle:focus-visible,
+.toastClose:focus-visible,
+.serverSelect:focus-visible,
+.serverMessage:focus-visible,
+.paperCardTitle a:focus-visible,
+.experimentLog a:focus-visible,
+.projectCheck input:focus-visible {   outline: 2px solid var(--dsw-alias-state-business-primary, #4176e6);
+  outline-offset: 2px;
+}
+
+.sideProjectsToggle {   display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sideProjects[data-collapsed] .sideProjectsToggle {   margin-bottom: 0;
+}
+
+.sideProjectsToggle .sectionTitle {   margin: 0;
+}
+
+.sideProjectsToggle:hover .sectionTitle {   color: var(--dsw-alias-label-secondary, #3c4557);
+}
+
+.sideProjectsCurrent {   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mimir-accent-strong);
+  font-size: 12px;
+}
+
+.collapseChevron {   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  transition: transform 0.15s ease;
+}
+
+.collapseChevron[data-up] {   transform: rotate(-90deg);
+}
+
+/* Meeting decks: the generate form, pick lists, and the deck list. */
+.meetingForm {   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-secondary, rgba(23, 35, 61, 0.03));
+  margin-bottom: 16px;
+}
+
+.meetingFormRow {   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.meetingFormRow .input {   flex: 1 1 200px;
+}
+
+.meetingDate {   display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+}
+
+.meetingDate .input {   flex: 0 0 auto;
+}
+
+.meetingCheck {   display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.meetingPickList {   list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.meetingPickItem {   display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.meetingPickItem:hover {   background: var(--dsw-alias-bg-secondary, rgba(23, 35, 61, 0.04));
+}
+
+.meetingPickItem[data-picked] {   border-color: var(--mimir-accent);
+  background: var(--mimir-accent-soft);
+}
+
+.meetingPickTitle {   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.meetingPickBody {   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meetingPickTitleRow {   display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.meetingPickMeta {   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+}
+
+.meetingPickGrid {   list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.meetingPickFigure {   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.meetingPickFigure:hover {   border-color: var(--mimir-accent);
+}
+
+.meetingPickFigure[data-picked] {   border-color: var(--mimir-accent);
+  box-shadow: 0 0 0 2px var(--mimir-accent-soft);
+}
+
+.meetingPickFigure img {   width: 100%;
+  height: 90px;
+  object-fit: contain;
+  background: var(--dsw-alias-bg-secondary, rgba(23, 35, 61, 0.04));
+  border-radius: 6px;
+}
+
+.deckList {   list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deckRow {   display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 10px;
+}
+
+.deckName {   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.deckMeta {   flex-shrink: 0;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+}
+
+/* Venue picker: header chip plus the registry popover. */
+.venuePicker {   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.venueChip {   display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px dashed var(--mimir-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.venueChip:hover {   border-color: var(--mimir-accent);
+  color: var(--mimir-accent);
+}
+
+.venueChip[data-set] {   border-style: solid;
+  border-color: var(--mimir-accent);
+  background: var(--mimir-accent-soft);
+  color: var(--mimir-accent);
+  font-weight: 500;
+}
+
+.venuePopover {   position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: 300px;
+  max-height: 440px;
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 16px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: var(--mimir-card-shadow);
+}
+
+.venuePopoverTitle {   margin: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-tertiary, #8a93a6);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.venueGroup {   margin-bottom: 8px;
+}
+
+.venueGroupTitle {   margin: 0 0 2px;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary, #8a93a6);
+}
+
+.venueOption {   display: block;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.venueOption:hover:not(:disabled) {   background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 5%));
+}
+
+.venueOption[data-active] {   background: var(--mimir-accent-soft);
+  color: var(--mimir-accent);
+  font-weight: 500;
+}
+
+.venueCustomRow {   display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.venueCustomRow .input {   flex: 1;
+  min-width: 0;
+}
+
+.venueFileInput {   width: 100%;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #5b6472);
+}
+
+.venueClear {   display: block;
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-state-error-primary, #d93026);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.venueClear:hover:not(:disabled) {   text-decoration: underline;
+}
+
+.serverMessageText {   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.serverMessage[data-open] .serverMessageText {   white-space: normal;
+  word-break: break-word;
+}
+
+/* Snapshots panel: the snapshot list reuses the bib card language
+   (.bibPanel/.bibItem/.bibRow); only the snapshot-specific bits and the
+   snapshot toggle (a bibToggle twin without the auto margin) live here. */
+.snapToggle {   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 7px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.snapToggle:hover:not(:disabled) {   border-color: var(--mimir-line);
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 4%));
+  color: var(--dsw-alias-label-primary, #17233d);
+}
+
+.snapToggle[data-active] {   border-color: transparent;
+  background: var(--mimir-accent-soft);
+  color: var(--mimir-accent-strong);
+}
+
+.snapToggle:disabled {   cursor: default;
+  opacity: 0.45;
+}
+
+.snapTime {   flex-shrink: 0;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.snapMeta {   min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snapConfirm {   margin: 0;
+  color: var(--dsw-alias-state-error-primary, #d93026);
+  font-size: 12.5px;
+}
+
+/* The snapshot diff: one row per line, unchanged runs folded into gap
+   markers. Additions paint green, deletions red, on the shared state tokens. */
+.diffView {   overflow-x: auto;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 10px;
+  background: var(--dsw-alias-markdown-code-block, #f9fafb);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.diffLine {   display: flex;
+  gap: 8px;
+  padding: 0 10px;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  white-space: pre;
+}
+
+.diffLine[data-type='add'] {   background: var(--dsw-alias-state-success-tertiary, rgb(52 199 89 / 12%));
+  color: var(--dsw-alias-state-success-primary, #2da44e);
+}
+
+.diffLine[data-type='del'] {   background: var(--dsw-alias-state-error-secondary, rgb(236 19 19 / 8%));
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.diffLineNo {   flex-shrink: 0;
+  min-width: 3ch;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  text-align: right;
+  user-select: none;
+}
+
+.diffSign {   flex-shrink: 0;
+  width: 1ch;
+  user-select: none;
+}
+
+.diffText {   min-width: 0;
+}
+
+.diffGap {   padding: 2px 10px;
+  border-top: 1px dashed var(--mimir-line-soft);
+  border-bottom: 1px dashed var(--mimir-line-soft);
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11.5px;
+  text-align: center;
+  user-select: none;
+}
+
+/* Reading notes: the side panel of the fullscreen PDF reader. */
+.paperNotesPanel {   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 560px;
+  padding: 10px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 10px;
+  background: var(--dsw-specific-menu, #fff);
+}
+
+/* Fullscreen PDF reading: the viewport-sized overlay lifting one card's
+   reader (iframe + notes panel) out of the grid. */
+.paperPdfOverlay {   position: fixed;
+  inset: 0;
+  /* Above the shell's floating widgets (1200) and Naive UI's modal layer
+     (2000): the reader takes the page over, nothing may sit on its head. */
+  z-index: 3000;
+  /* The desktop shell marks the window's top strip as `drag` (and inherits it
+     into whatever sits there), which swallows mousedown/click and turns a
+     double click into a window maximize. The reader opts out explicitly. */
+  -webkit-app-region: no-drag;
+  display: flex;
+  flex-direction: column;
+  background: var(--dsw-alias-bg-body, #f5f6f7);
+}
+
+.paperPdfOverlayHead {   display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  -webkit-app-region: no-drag;
+  border-bottom: 1px solid var(--mimir-line-soft);
+  background: var(--dsw-specific-menu, #fff);
+}
+
+.paperPdfOverlayTitle {   flex: 1;
+  -webkit-app-region: no-drag;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary, #1f2329);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paperPdfOverlayBody {   flex: 1;
+  display: flex;
+  gap: 10px;
+  min-height: 0;
+  padding: 10px 16px 14px;
+}
+
+.paperPdfOverlayFrame {   flex: 1;
+  min-width: 0;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 10px;
+  background: var(--dsw-specific-menu, #fff);
+}
+
+.paperPdfOverlayBody .paperNotesPanel {   width: 320px;
+  flex-shrink: 0;
+  max-height: none;
+}
+
+/* The AI relevance chip on a literature card; the band colors the score. */
+.relevanceChip {   display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.relevanceChip[data-band='high'] {   background: var(--dsw-alias-state-success-light, #e6f4ea);
+  color: var(--dsw-alias-state-success, #1a7f37);
+}
+
+.relevanceChip[data-band='mid'] {   background: var(--dsw-alias-state-warning-light, #fff4e0);
+  color: var(--dsw-alias-state-warning, #9a6700);
+}
+
+.relevanceChip[data-band='low'] {   background: var(--dsw-alias-state-danger-light, #fdebec);
+  color: var(--dsw-alias-state-danger, #cf222e);
+}
+
+/* Zotero: the unconfigured notice stays on one line until expanded. */
+.zoteroLine {   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Papers: the filter chips row gets a label so it does not read as metadata. */
+.filtersLabel {   color: var(--dsw-alias-label-tertiary, #8a8f98);
+  font-size: 12px;
+}
+
+/* Papers: the manual 0-10 scorer that sits in the card's action row. */
+.scorePicker {   position: relative;
+  display: inline-flex;
+}
+
+.scoreMenu {   position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+.scoreStep {   width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.scoreStep:hover {   background: rgb(0 0 0 / 6%);
+}
+
+.scoreStep[data-active] {   background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 15%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  font-weight: 600;
+}
+
+.scoreClear {   height: 24px;
+  margin-left: 4px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #8a8f98);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.scoreClear:hover {   color: var(--dsw-alias-state-danger, #cf222e);
+}
+
+/* Figures view: the format badges of one grouped card and the inline
+   rename/caption editor. */
+.figureFormats {   display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.figureFormatBadge {   padding: 0 6px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 4px;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.figureEditor {   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.figureEditorFoot {   display: flex;
+  gap: 8px;
+}
+
+/* --- arXiv subscriptions (feat/arxiv-subscriptions): keep this block at the end of the file to avoid merge conflicts --- */
+/* The papers view's subscription bar: add form, removable pills with the
+   unimported-new badge, and the inline new-entry list with import buttons. */
+.subscriptionsBar {   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 16px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: var(--mimir-card-shadow);
+}
+
+.paperNotesTitle {   margin: 0;
+  color: var(--dsw-alias-label-primary, #1f2329);
+  font-size: 13px;
+}
+
+.paperNoteList {   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+}
+
+.paperNoteItem {   padding-left: 8px;
+  border-left: 2px solid var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.paperNoteAt {   color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+}
+
+.paperNoteText {   margin: 2px 0 0;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* feat/probe-progress: the in-flight probe's staged progress line — the stage
+   label painted in the in-progress (business) color, the worst-case ETA hint
+   in the tertiary label color, and the settled per-stage failure label. */
+.serverProbeStage {   color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.serverProbeEta {   margin-left: 6px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+}
+
+.serverProbeFailStage {   font-weight: 600;
+}
+
+.subscriptionsHead {   display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subscriptionsHead .sectionTitle {   margin: 0;
+}
+
+.subscriptionBadge {   display: inline-flex;
+  align-items: center;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--mimir-accent, #4f7cff), var(--mimir-accent-strong, #315fe9));
+  color: var(--dsw-alias-label-primary-foreground, #fff);
+  font-size: 12px;
+  line-height: 1.6;
+  font-weight: 600;
+}
+
+.subscriptionsForm {   display: flex;
+  gap: 8px;
+}
+
+.subscriptionsForm .input {   flex: 1;
+}
+
+.subscriptionPills {   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.subscriptionPill {   display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 9px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 999px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.subscriptionPillCount {   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--mimir-accent, #4f7cff), var(--mimir-accent-strong, #315fe9));
+  color: var(--dsw-alias-label-primary-foreground, #fff);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.subscriptionNew {   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--mimir-line-soft);
+  padding-top: 8px;
+}
+
+.subscriptionNewHead {   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.subscriptionNewHead .sectionTitle {   margin: 0;
+}
+
+.subscriptionNewToggle {   display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.subscriptionNewToggle:hover .sectionTitle {   color: var(--dsw-alias-label-secondary, #3c4557);
+}
+
+.subscriptionNewGroup {   display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.subscriptionNewGroup .hint {   margin: 0;
+}
+
+.subscriptionEntry {   display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--dsw-alias-markdown-code-block, #f1f3f5);
+}
+
+.subscriptionEntryHead {   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.subscriptionEntryHead .paperCardTitle {   margin: 0;
+}
+
+.subscriptionEntry .paperCardMeta {   margin: 0;
+}
+
+/* --- Zotero section (feat/zotero): appended block, merged independently of the visual-polish refactor --- */
+.zoteroSection {   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-specific-menu, #fff);
+}
+
+.zoteroSection .sectionTitle {   margin: 0;
+}
+
+.zoteroSection .hint,
+.zoteroSection .failure {   margin: 0;
+}
+
+.zoteroControls {   display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zoteroSelect {   max-width: 260px;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 8px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 12px;
+}
+
+.zoteroSelect:focus-visible {   outline: 2px solid var(--dsw-alias-focus-border, #4f7cff);
+  outline-offset: 1px;
+}
+
+/* The worktree (S2) card: the process as branches, dead ends, and the
+   mainline ref — a lane list, mainline-first, glyph-coded by status. */
+.worktreeBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  margin: 2px 0 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 10px;
+}
+
+.worktreeBannerKind {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.worktreeBannerMain {
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.worktreeBannerMeta {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 12px;
+}
+
+.worktreeGroup {
+  margin-top: 12px;
+}
+
+.worktreeGroupTitle {
+  margin: 0 0 6px;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.worktreeList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.worktreeLane {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 10px;
+}
+
+.worktreeLane[data-main] {
+  border-left: 3px solid var(--dsw-alias-label-primary, #211e19);
+}
+
+.worktreeLane[data-status='failed'] {
+  opacity: 0.82;
+}
+
+.worktreeGlyph {
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.worktreeGlyph[data-status='failed'] {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+}
+
+.worktreeLaneBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.worktreeLaneHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.worktreeLaneLabel {
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.worktreeMainBadge {
+  padding: 1px 6px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 999px;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 10.5px;
+}
+
+.worktreeLaneMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 2px;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 11.5px;
+}
+
+.worktreeReason {
+  margin: 4px 0 0;
+  color: var(--dsw-alias-label-secondary, #5b6474);
+  font-size: 12px;
+}
+
+.worktreeParent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.worktreeParentLabel {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 11px;
+}
+
+.worktreeSelect,
+.worktreeCloseInput {
+  min-width: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 7px;
+  background: var(--mimir-paper);
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-size: 12px;
+}
+
+.worktreeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.worktreeCloseBox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--mimir-line-soft);
+  border-radius: 8px;
+}
+
+.worktreeCloseInput {
+  flex: 1;
+  min-width: 160px;
+}
+
+.worktreeCount {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 11px;
+}
+
+.worktreeOver {
+  color: var(--mimir-error);
+  font-size: 11px;
+}
+
+.worktreeCounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+}
+
+/* ── Foraging (S4) card + worktree storyline strip ───────────────────── */
+
+.foragingBaseline {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #57503f);
+}
+
+.foragingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.foragingRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.foragingGut {
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary, #57503f);
+  font-variant-numeric: tabular-nums;
+}
+
+.foragingNote {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* ── Branch flow (paper canvas, hairline connectors, ink-ringed nodes) ─── */
+
+.worktreeFlowBox {
+  position: relative;
+  margin: 0 0 12px;
+  border-radius: 16px;
+  background: var(--mimir-sheet);
+  border: 1px solid var(--mimir-line-soft);
+  padding: 10px 6px 4px;
+  overflow: auto;
+}
+
+.worktreeFlowBox svg {
+  display: block;
+  width: 100%;
+  min-width: 320px;
+  height: auto;
+}
+
+/* Flat connectors on the light grey rail — the lane's own colour lives on
+   its pill and its nodes, so the graph stays calm with many lanes. */
+.worktreeFlowCurve,
+.worktreeFlowMain,
+.worktreeFlowAdopted,
+.worktreeFlowDead {
+  fill: none;
+  stroke: var(--mimir-line);
+  stroke-linecap: round;
+}
+
+.worktreeFlowCurve { stroke-width: 4; }
+.worktreeFlowMain { stroke-width: 6; }
+.worktreeFlowAdopted { stroke-width: 4.5; }
+.worktreeFlowDead { stroke-width: 3; opacity: 0.6; stroke-dasharray: 5 4; }
+
+/* White ring + saturated fill: the node reads as a bead, not a blob. */
+.worktreeFlowBead,
+.worktreeFlowBeadMeta,
+.worktreeFlowBeadTerminal {
+  stroke: var(--mimir-sheet);
+  stroke-width: 2.2;
+}
+
+.worktreeFlowBeadMeta { stroke-width: 1.6; opacity: 0.9; }
+
+.worktreeFlowBeadTerminal {
+  stroke-width: 3;
+}
+
+.worktreeFlowEpoch {
+  stroke: var(--mimir-line);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+}
+
+.worktreeFlowNow {
+  stroke: var(--mimir-accent);
+  stroke-width: 1.6;
+  opacity: 0.6;
+}
+
+.worktreeFlowNote {
+  margin: 4px 8px 2px;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+}
+
+/* The highlight strip: memorable beats as soft pills, colour-coded by kind
+   so the eye finds the shape of the journey before reading a word. */
+.worktreeHighlights {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--mimir-paper);
+  border: 1px solid var(--mimir-line-soft);
+}
+
+.worktreeHighlightsTitle {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+}
+
+.worktreeHighlightList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.worktreeHighlight {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--mimir-sheet);
+  border: 1px solid var(--mimir-line);
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #57503f);
+}
+
+.worktreeHighlight[data-kind='eureka'] { border-color: var(--mimir-seal); background: var(--mimir-seal-soft); }
+.worktreeHighlight[data-kind='mainline'] { border-color: var(--mimir-accent); background: var(--mimir-accent-soft); }
+.worktreeHighlight[data-kind='adopted'] { border-color: var(--mimir-success); background: var(--mimir-success-soft); }
+.worktreeHighlight[data-kind='failed'] { border-color: var(--mimir-error); background: var(--mimir-error-soft); }
+.worktreeHighlight[data-kind='busiest'] { border-color: var(--mimir-warn); background: var(--mimir-warn-soft); }
+
+/* The lane pill: a saturated badge carrying the lane's own hue, so the
+   label below the graph and the nodes above it are visibly one thing. */
+.worktreeLanePill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: 11px;
+  color: var(--mimir-sheet);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.worktreeFlowTip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  display: grid;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--mimir-line-soft);
+  background: var(--mimir-sheet);
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: var(--mimir-edge), var(--mimir-card-shadow);
+}
+
+.worktreeFlowTipLane {
+  font-weight: 700;
+}
+
+.worktreeFlowTipMeta {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Digest (B–F) card ──────────────────────────────────────────── */
+.digestControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0;
+}
+.digestControlLabel {
+  margin-left: 10px;
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 12px;
+}
+.digestBody { display: block; }
+.digestRetrieval {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--mimir-line-soft);
+  background: var(--mimir-paper);
+  color: var(--dsw-alias-label-secondary, #57503f);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.digestSilence { color: var(--dsw-alias-label-tertiary, #857d6c); }
+.digestSection { margin: 14px 0; }
+.digestTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.digestTable th,
+.digestTable td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--mimir-line);
+  text-align: left;
+}
+.digestTable th[scope='row'] {
+  font-weight: 600;
+  color: var(--dsw-alias-label-secondary, #57503f);
+  white-space: nowrap;
+}
+.digestCapsuleList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.digestCapsule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--mimir-line-soft);
+  background: var(--mimir-sheet);
+  box-shadow: var(--mimir-edge);
+}
+.digestCapsuleAt { color: var(--dsw-alias-label-tertiary, #857d6c); font-variant-numeric: tabular-nums; }
+.digestCapsuleTheme { font-weight: 600; color: var(--dsw-alias-label-primary, #211e19); }
+.digestCapsuleMetric { font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-primary, #211e19); }
+.digestCapsuleEvidence {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-family: var(--mimir-mono);
+  font-size: 11px;
+}
+.digestNote {
+  color: var(--dsw-alias-label-tertiary, #857d6c);
+  font-size: 11px;
+  font-style: italic;
+  margin: 6px 0 0;
+}
+.digestMermaid {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--mimir-line-soft);
+  background: var(--mimir-paper);
+  overflow: auto;
+  font-family: var(--mimir-mono);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.digestTasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.digestTasks li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-size: 13px;
+}
+.digestDeclare {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.digestInput {
+  flex: 1 1 220px;
+  min-width: 180px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--mimir-line);
+  background: var(--mimir-sheet);
+  color: var(--dsw-alias-label-primary, #211e19);
+  font-size: 13px;
+  box-shadow: var(--mimir-edge);
+}
+
+/* Import-existing-project dialog: portaled to document.body, so the z-index
+   is relative to the root stacking context — it must clear the workbench
+   (1100) like the figure lightbox does. */
+.importOverlay {   position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 35%);
+}
+
+.importDialog {   width: min(480px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 18px 20px 16px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 14px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 24%);
+}
+
+.importDialogTitle {   margin: 0 0 10px;
+  color: var(--dsw-alias-label-primary, #1f2329);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.importForm {   display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.importField {   display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.importLabel {   color: var(--dsw-alias-label-secondary, #646a73);
+  font-size: 12px;
+}
+
+.importActions {   display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.importSummary {   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.importSuccessLine {   margin: 0;
+  color: var(--dsw-alias-label-primary, #1f2329);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.importWarnings {   margin: 0;
+  padding-left: 18px;
+  color: var(--dsw-alias-label-secondary, #646a73);
+  font-size: 12px;
+}
+
+.importWarnings li {   margin: 2px 0;
+}
+
+
+/* Venues view: the ccfddl conference card grid + the CCF-A journal directory. */
+.venues {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.venues .input[type='search'] {
+  width: 220px;
+}
+
+.venues select.input {
+  width: auto;
+}
+
+.venuesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.venueCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 17px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: var(--mimir-card-shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.venueCard:hover {
+  border-color: var(--dsw-alias-border-l3, rgb(0 0 0 / 12%));
+  box-shadow: 0 14px 32px rgb(33 30 25 / 12%);
+  transform: translateY(-1px);
+}
+
+.venueCard[data-watched] {
+  border-color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.venueCardHead {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.venueCardTitle {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.venueRank {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.7;
+}
+
+.venueRank[data-rank='A'] {
+  background: rgb(217 48 38 / 10%);
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.venueRank[data-rank='B'] {
+  background: rgb(255 153 0 / 12%);
+  color: var(--dsw-alias-state-warning-primary, #b25000);
+}
+
+.venueRank[data-rank='C'] {
+  background: rgb(65 118 230 / 10%);
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
+.venueWatch {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.venueWatch:hover:not(:disabled) {
+  color: var(--dsw-alias-state-warning-primary, #b25000);
+}
+
+.venueWatch[data-on] {
+  color: var(--dsw-alias-state-warning-primary, #b25000);
+}
+
+.venueWatch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.venueCardDesc {
+  margin: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.venueCardDeadline {
+  margin: 0;
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.venueCardDeadline[data-soon] {
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.venueCardMeta {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.venueCardLink {
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.venueCardLink:hover {
+  text-decoration: underline;
+}
+
+/* ===== Evidence workflow diagram (v3): the git-workflow rendering. The
+   diagram is one self-contained SVG; the view only frames it and styles the
+   progressive-disclosure detail card. ===== */
+
+.viewSwitch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 10px;
+  background: var(--dsw-specific-menu, #fff);
+}
+
+.viewSwitchBtn {
+  min-height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.viewSwitchBtn[data-active] {
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 12%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  font-weight: 500;
+}
+
+.laneGraph {
+  margin-top: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.laneSvg {
+  display: block;
+}
+
+.laneNode {
+  cursor: pointer;
+}
+
+.laneNode:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, #4176e6);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.laneAxisText {
+  font-variant-numeric: tabular-nums;
+}
+
+.laneTime {
+  flex: none;
+  margin-left: 8px;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Group-meeting deck preview: the generated pptx flattened into 16:9 slides.
+   Every size/offset inside .deckSlide comes from the server as a percentage of
+   the slide width, applied as `cqw` — that is why .deckSlide declares the
+   container, and why nothing here needs to measure the DOM. */
+.deckPreviewOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 52%);
+}
+
+.deckPreviewDialog {
+  display: flex;
+  flex-direction: column;
+  width: min(1040px, 92vw);
+  max-height: 90vh;
+  box-sizing: border-box;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--mimir-line-soft);
+  border-radius: 16px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: 0 18px 56px rgb(0 0 0 / 30%);
+}
+
+.deckPreviewHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.deckPreviewTitle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary, #1f2329);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deckPreviewStage {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 14px;
+  overflow: auto;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-sunken, #f2f3f5);
+}
+
+.deckSlide {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  container-type: inline-size;
+  background: #fff;
+  box-shadow: 0 2px 14px rgb(0 0 0 / 14%);
+}
+
+.deckRect {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.deckText {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 0.5cqw 0.5cqw;
+  font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', sans-serif;
+  word-break: break-word;
+}
+
+.deckPara {
+  position: relative;
+  margin: 0;
+}
+
+.deckDot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: inherit;
+}
+
+.deckPreviewFoot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.deckPreviewPage {
+  min-width: 56px;
+  color: var(--dsw-alias-label-secondary, #3c4557);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
