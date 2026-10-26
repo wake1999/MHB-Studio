@@ -1,0 +1,498 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { NTooltip } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
+import { isStoredSuperAdmin } from '@/api/client'
+import { useSessionSearch } from '@/composables/useSessionSearch'
+import DesktopUpdateDownloadTab from './DesktopUpdateDownloadTab.vue'
+import { useNavigationRail } from '@/composables/useNavigationRail'
+
+type ActiveSection = 'chat' | 'history' | 'connections' | 'agents' | 'models' | 'usage' | 'apiRelay' | 'group' | 'global' | 'workflow'
+
+const props = defineProps<{
+  active: ActiveSection
+  primaryLabel?: string
+}>()
+
+const emit = defineEmits<{
+  primary: []
+}>()
+
+const { t } = useI18n()
+const router = useRouter()
+const { openSessionSearch } = useSessionSearch()
+const canManageAgents = computed(() => isStoredSuperAdmin())
+const hasNavigationRail = useNavigationRail()
+
+const primaryText = computed(() => props.primaryLabel || t('chat.newChat'))
+
+function openChat() {
+  if (props.active === 'chat') return
+  void router.push({ name: 'hermes.chat' })
+}
+
+function openHistory() {
+  if (props.active === 'history') return
+  void router.push({ name: 'hermes.history' })
+}
+
+function openConnections() {
+  if (props.active === 'connections') return
+  void router.push({ name: 'hermes.connections' })
+}
+
+function openAgentManager() {
+  if (props.active === 'agents') return
+  void router.push({ name: 'hermes.agentManager' })
+}
+
+function openModels() {
+  if (props.active === 'models') return
+  void router.push({ name: 'hermes.models' })
+}
+
+function openUsage() {
+  if (props.active === 'usage') return
+  void router.push({ name: 'hermes.usage' })
+}
+
+function openGroupChat() {
+  if (props.active === 'group') return
+  void router.push({ name: 'hermes.groupChat' })
+}
+
+function openWorkflow() {
+  if (props.active === 'workflow') return
+  void router.push({ name: 'hermes.workflow' })
+}
+</script>
+
+<template>
+  <div class="page-sidebar-nav" :class="{ 'page-sidebar-nav--compact': hasNavigationRail }">
+    <DesktopUpdateDownloadTab />
+    <div class="page-sidebar-tabs" role="tablist" aria-label="Chat actions">
+      <div class="page-sidebar-brand-row">
+        <span class="page-sidebar-brand" title="MedHealthBuddy">MedHealthBuddy</span>
+        <div class="page-sidebar-brand-actions">
+          <button
+            class="page-sidebar-icon-button"
+            type="button"
+            :aria-label="t('sidebar.search')"
+            :title="t('sidebar.search')"
+            @click="openSessionSearch"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+          </button>
+          <div v-if="$slots.actions" class="page-sidebar-brand-extra">
+            <slot name="actions" />
+          </div>
+        </div>
+      </div>
+      <!-- Primary action sits under the search row, full width, like the list's
+           own "new task" entry — not squeezed next to the search box. -->
+      <button
+        v-if="active !== 'history'"
+        class="page-sidebar-tab page-sidebar-primary"
+        type="button"
+        :title="primaryText"
+        :aria-label="primaryText"
+        @click="emit('primary')"
+      >
+        <svg
+          class="page-sidebar-primary__icon"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M20 11.5a7.5 7.5 0 0 1-10.6 6.8L4.5 20l1.7-4.9A7.5 7.5 0 1 1 20 11.5Z" />
+          <path d="M12 8.6v5.8M9.1 11.5h5.8" />
+        </svg>
+        <span class="page-sidebar-primary__label">{{ primaryText }}</span>
+      </button>
+      <button
+        v-if="!hasNavigationRail"
+        class="page-sidebar-tab"
+        :class="{ active: active === 'connections' }"
+        type="button"
+        :aria-current="active === 'connections' ? 'page' : undefined"
+        @click="openConnections"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 4h14a1 1 0 0 1 1 1v4M3 4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h9M7 16v4M5 20h7M15 9h6a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1M17 18h2" />
+        </svg>
+        <span>{{ t('sidebar.connections') }}</span>
+      </button>
+      <button
+        v-if="canManageAgents && !hasNavigationRail"
+        class="page-sidebar-tab"
+        :class="{ active: active === 'agents' }"
+        type="button"
+        :aria-current="active === 'agents' ? 'page' : undefined"
+        @click="openAgentManager"
+      >
+        <svg
+          width="17"
+          height="17"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 8V4H8" />
+          <rect x="4" y="8" width="16" height="12" rx="3" />
+          <path d="M2 14h2M20 14h2M9 13v2M15 13v2" />
+        </svg>
+        <span>{{ t('sidebar.agentManager') }}</span>
+      </button>
+      <button
+        v-if="!hasNavigationRail"
+        class="page-sidebar-tab"
+        :class="{ active: active === 'models' }"
+        type="button"
+        :aria-current="active === 'models' ? 'page' : undefined"
+        @click="openModels"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" />
+        </svg>
+        <span>{{ t('sidebar.models') }}</span>
+      </button>
+      <button v-if="!hasNavigationRail" class="page-sidebar-tab" :class="{ active: active === 'usage' }" type="button" :aria-current="active === 'usage' ? 'page' : undefined" @click="openUsage">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="12" width="4" height="9" rx="1" />
+          <rect x="10" y="7" width="4" height="14" rx="1" />
+          <rect x="17" y="3" width="4" height="18" rx="1" />
+        </svg>
+        <span>{{ t('sidebar.usage') }}</span>
+      </button>    </div>
+    <div v-if="!hasNavigationRail" class="conversation-switch conversation-switch--four" role="tablist" aria-label="Conversation type">
+      <NTooltip trigger="hover" placement="top">
+        <template #trigger>
+          <button
+            class="conversation-switch-tab"
+            :class="{ active: active === 'chat' }"
+            type="button"
+            role="tab"
+            :aria-label="t('sidebar.singleChat')"
+            :aria-selected="active === 'chat'"
+            @click="openChat"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+        </template>
+        {{ t('sidebar.singleChat') }}
+      </NTooltip>
+      <NTooltip trigger="hover" placement="top">
+        <template #trigger>
+          <button
+            class="conversation-switch-tab"
+            :class="{ active: active === 'group' }"
+            type="button"
+            role="tab"
+            :aria-label="t('sidebar.groupChat')"
+            :aria-selected="active === 'group'"
+            @click="openGroupChat"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </button>
+        </template>
+        {{ t('sidebar.groupChat') }}
+      </NTooltip>
+      <NTooltip trigger="hover" placement="top">
+        <template #trigger>
+          <button
+            class="conversation-switch-tab"
+            :class="{ active: active === 'workflow' }"
+            type="button"
+            role="tab"
+            :aria-label="t('sidebar.workflow')"
+            :aria-selected="active === 'workflow'"
+            @click="openWorkflow"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="5" cy="12" r="3" />
+              <circle cx="19" cy="6" r="3" />
+              <circle cx="19" cy="18" r="3" />
+              <path d="M8 12h3a4 4 0 0 0 4-4V6" />
+              <path d="M8 12h3a4 4 0 0 1 4 4v2" />
+            </svg>
+          </button>
+        </template>
+        {{ t('sidebar.workflow') }}
+      </NTooltip>
+      <NTooltip trigger="hover" placement="top">
+        <template #trigger>
+          <button
+            class="conversation-switch-tab"
+            :class="{ active: active === 'history' }"
+            type="button"
+            role="tab"
+            :aria-label="t('sidebar.history')"
+            :aria-selected="active === 'history'"
+            @click="openHistory"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+          </button>
+        </template>
+        {{ t('sidebar.history') }}
+      </NTooltip>
+    </div>
+  </div>
+</template>
+
+<style scoped lang="scss">
+@use "@/styles/variables" as *;
+
+.page-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.page-sidebar-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.page-sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 34px;
+  padding: 0 2px 0 6px;
+}
+
+.page-sidebar-brand {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: $text-primary;
+}
+
+.page-sidebar-brand-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.page-sidebar-brand-extra {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.page-sidebar-icon-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: $text-secondary;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color $transition-fast,
+    color $transition-fast;
+
+  &:hover {
+    background: rgba(var(--accent-primary-rgb), 0.08);
+    color: $text-primary;
+  }
+}
+
+.page-sidebar-nav--compact {
+  .page-sidebar-brand-row { padding-left: 4px; }
+}
+
+.api-relay-logo { border-radius: 4px; }
+
+.page-sidebar-tab {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: $text-secondary;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition:
+    background-color $transition-fast,
+    color $transition-fast;
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  &:hover,
+  &.active {
+    background: rgba(var(--accent-primary-rgb), 0.06);
+    color: $text-primary;
+  }
+}
+
+/* New-chat entry: the one tinted row in the sidebar, so it reads as the
+   primary action instead of another nav item. */
+.page-sidebar-primary {
+  width: 100%;
+  height: 38px;
+  margin: 2px 0 8px;
+  padding: 0 10px;
+  gap: 8px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(var(--text-primary-rgb), 0.05);
+  color: $text-primary;
+  font-weight: 600;
+
+  .page-sidebar-primary__icon {
+    width: 18px;
+    height: 18px;
+    color: $text-primary;
+  }
+
+  .page-sidebar-primary__label {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+  }
+
+  &:hover {
+    background: rgba(var(--text-primary-rgb), 0.09);
+    color: $text-primary;
+  }
+
+  &:active {
+    background: rgba(var(--text-primary-rgb), 0.12);
+  }
+}
+
+.conversation-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border-radius: $radius-sm;
+  background: rgba(var(--accent-primary-rgb), 0.05);
+}
+
+.conversation-switch--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.conversation-switch-tab {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: $text-secondary;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color $transition-fast,
+    color $transition-fast;
+
+  svg {
+    flex: 0 0 auto;
+  }
+
+  &:hover {
+    color: $text-primary;
+  }
+
+  &.active {
+    background: $bg-card;
+    color: $text-primary;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+}
+
+:global(.dark .conversation-switch--four .conversation-switch-tab.active) {
+  background: $bg-card-hover;
+  color: $accent-primary;
+  box-shadow:
+    inset 0 0 0 1px $border-color,
+    0 2px 5px rgba(0, 0, 0, 0.22);
+}
+</style>

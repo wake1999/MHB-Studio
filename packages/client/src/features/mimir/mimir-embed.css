@@ -1,0 +1,120 @@
+/**
+ * 让上游 Mimir 面板「嵌进内容区 + 沿用 webui 纯墨色」的覆盖层。
+ *
+ * 上游面板原本是整框浮层（position:fixed + 半透明遮罩 + 暖纸配色 token）。
+ * 这里不改上游客组件，只在挂载点 [data-mimir-embed] 上加一层选择器：
+ *   1. 定位从 fixed 改成填满容器，去掉遮罩、圆角、投影与边框；
+ *   2. 把面板私有的 --mimir-* 纸墨 token 接到 ekko 的全局 token 上，
+ *      面板内部的全部颜色于是跟着亮/暗主题走；
+ *   3. 顺带改掉它给宿主色板做的 --dsw-alias-* 重着色，否则标签、边框、
+ *      主按钮仍是陶土暖色。
+ * 约定：只动颜色与定位，不动字号、间距、组件结构。
+ */
+
+[data-mimir-embed] {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- 1. 从浮层改成内容区面板 ---------- */
+
+[data-mimir-embed] [role='dialog'] {
+  position: absolute;
+  inset: 0;
+  z-index: auto;
+  width: auto;
+  height: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  color-scheme: inherit;
+
+  /* ---------- 2. 纸墨 token → webui token ---------- */
+
+  --mimir-paper: var(--bg-primary);
+  --mimir-paper-deep: var(--bg-secondary);
+  --mimir-sheet: var(--bg-card);
+  --mimir-ink: var(--text-primary);
+  --mimir-line: var(--border-color);
+  --mimir-line-soft: var(--border-light);
+  --mimir-accent: var(--accent-primary);
+  --mimir-accent-strong: var(--text-primary);
+  --mimir-accent-soft: rgba(var(--accent-primary-rgb), 0.08);
+  --mimir-seal: var(--error);
+  --mimir-seal-soft: rgba(var(--error-rgb), 0.1);
+  --mimir-success: var(--success);
+  --mimir-success-soft: rgba(var(--success-rgb), 0.12);
+  --mimir-error: var(--error);
+  --mimir-error-soft: rgba(var(--error-rgb), 0.1);
+  --mimir-warn: var(--warning);
+  --mimir-warn-soft: rgba(var(--warning-rgb), 0.12);
+  /* 面板里有几张卡用的是这块“半透明纸”而不是 --mimir-sheet，一并换掉 */
+  --mimir-glass: var(--bg-card);
+  --mimir-edge: inset 0 1px 0 rgba(var(--text-primary-rgb), 0.06);
+  --mimir-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* ---------- 3. 宿主色板重着色 → webui token ---------- */
+
+  --dsw-specific-menu: var(--bg-card);
+  --dsw-alias-markdown-code-block: var(--bg-input);
+  --dsw-alias-label-primary: var(--text-primary);
+  --dsw-alias-label-secondary: var(--text-secondary);
+  --dsw-alias-label-tertiary: var(--text-muted);
+  --dsw-alias-label-quaternary: var(--text-muted);
+  --dsw-alias-label-primary-foreground: var(--text-on-accent);
+  --dsw-alias-border-l1: var(--border-light);
+  --dsw-alias-border-l2: var(--border-color);
+  --dsw-alias-border-l3: var(--border-color);
+  --dsw-alias-border-secondary: var(--border-color);
+  --dsw-alias-interactive-bg-hover: rgba(var(--accent-primary-rgb), 0.06);
+  --dsw-alias-button-primary-fill: var(--accent-primary);
+  --dsw-alias-button-primary-hover: var(--accent-primary);
+  --dsw-alias-state-business-primary: var(--accent-primary);
+  --dsw-alias-state-business-tertiary: rgba(var(--accent-primary-rgb), 0.08);
+  --dsw-alias-business-primary: var(--accent-primary);
+  --dsw-alias-business-quaternary: rgba(var(--accent-primary-rgb), 0.06);
+  --dsw-alias-state-success-primary: var(--success);
+  --dsw-alias-state-success-tertiary: rgba(var(--success-rgb), 0.12);
+  --dsw-alias-state-error-primary: var(--error);
+  --dsw-alias-state-error-secondary: rgba(var(--error-rgb), 0.1);
+  --dsw-alias-state-error-tertiary: rgba(var(--error-rgb), 0.12);
+  --dsw-alias-state-warn-label: var(--warning);
+  --dsw-alias-state-warn-tertiary: rgba(var(--warning-rgb), 0.12);
+}
+
+/* 遮罩在这层已经没意义：面板就是页面本身 */
+[data-mimir-embed] [role='dialog'] > div[aria-hidden='true']:first-child {
+  display: none;
+}
+
+/* 侧轨与内容区各自用 webui 的次级/主底色，去掉纸张渐变 */
+[data-mimir-embed] [role='dialog'] > aside {
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+[data-mimir-embed] [role='dialog'] > main {
+  background: var(--bg-primary);
+}
+
+/* 页面形态下「关闭」会把整个工作台收起，等于白屏：入口收起后不再展示 */
+[data-mimir-embed] [role='dialog'] > aside > div:first-child > div:last-child > button:last-child {
+  display: none;
+}
+
+/* 少量写死暖色的部件（CSS Module 类名带哈希，用属性子串匹配） */
+[data-mimir-embed] [role='dialog'] [class*='sideProjects'] {
+  background: transparent;
+}
+
+[data-mimir-embed] [role='dialog'] [class*='projectRow'][data-selected] {
+  border-color: rgba(var(--accent-primary-rgb), 0.28);
+}
+
+/* 焦点环落在面板自己的按钮上时，用 webui 的信息色而不是全局默认值 */
+[data-mimir-embed] [role='dialog'] :focus-visible {
+  outline-color: var(--accent-info);
+}
