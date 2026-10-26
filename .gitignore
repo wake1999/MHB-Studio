@@ -11,3 +11,6 @@ debug-launch.log
 
 # A separate project (promo video), not part of the app.
 promo-video/
+
+# deploy-studio.ps1 的本地配置：里面是服务器地址
+.deploy.local
