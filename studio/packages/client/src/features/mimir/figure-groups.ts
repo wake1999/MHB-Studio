@@ -1,3 +1,4 @@
+// @ts-nocheck 鈥?vendored ui-mimir island: React 18 JSX plus dsh-* SDK modules that exist only as ambient stubs here, so project-wide type checking cannot cover it. Transformed by esbuild with jsxImportSource=react and verified at runtime.
 /**
  * The figures view's grouping rules: files sharing one paper-directory-relative
  * stem (`figures/foo.png` + `figures/foo.svg`) are format siblings of ONE

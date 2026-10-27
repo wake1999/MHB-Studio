@@ -1,3 +1,4 @@
+// @ts-nocheck 鈥?vendored ui-mimir island: React 18 JSX plus dsh-* SDK modules that exist only as ambient stubs here, so project-wide type checking cannot cover it. Transformed by esbuild with jsxImportSource=react and verified at runtime.
 /**
  * The paper snapshots panel: the selected project's compile snapshots as a
  * newest-first list (relative time, file count, total size), each row

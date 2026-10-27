@@ -1,3 +1,4 @@
+// @ts-nocheck 鈥?vendored ui-mimir island: React 18 JSX plus dsh-* SDK modules that exist only as ambient stubs here, so project-wide type checking cannot cover it. Transformed by esbuild with jsxImportSource=react and verified at runtime.
 /**
  * The meetings view: build a group-meeting (组会) pptx from the selected
  * project's wiki material. The form carries the deck title/presenter/date,

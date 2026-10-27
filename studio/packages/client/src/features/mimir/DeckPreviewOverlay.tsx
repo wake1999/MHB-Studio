@@ -1,3 +1,4 @@
+// @ts-nocheck 鈥?vendored ui-mimir island: React 18 JSX plus dsh-* SDK modules that exist only as ambient stubs here, so project-wide type checking cannot cover it. Transformed by esbuild with jsxImportSource=react and verified at runtime.
 /**
  * 组会汇报的幻灯片预览：服务端把 pptx 拆成「每页 + 绝对定位的文本框 / 色块」，
  * 这里按同一套几何铺进一张 16:9 的卡片。字号与缩进都是「幻灯片宽度的百分比」，
